@@ -7,7 +7,7 @@ JoDerma adalah klinik kulit dengan dua cabang.
 
 ## Status
 
-**Tahap 4 selesai.** Alur lengkap sudah jalan: unggah laporan, buat link, daftar kirim CS, sampai pasien mengisi survei (681 tes).
+**Tahap 5 selesai.** Alur penuh sudah jalan, dari unggah laporan sampai berkas analisis siap diserahkan ke Claude agent (793 tes).
 
 | Tahap | Isi | Status |
 |---|---|---|
@@ -16,7 +16,7 @@ JoDerma adalah klinik kulit dengan dua cabang.
 | 2 | Basis data + aturan jeda kirim + tes | **selesai** |
 | 3 | Pembuatan link + daftar kirim CS | **selesai** |
 | 4 | Halaman survei publik | **selesai** |
-| 5 | Perapian data + ekspor anonim | belum |
+| 5 | Perapian data + ekspor anonim | **selesai** |
 | 6 | Laporan PDF | belum |
 
 ## Menjalankan
@@ -39,6 +39,17 @@ Mengubah isi survei: sunting `config/pertanyaan.toml`, lalu
 uv run python -m joderma_survey --basis joderma.db pertanyaan            # uji kering
 uv run python -m joderma_survey --basis joderma.db pertanyaan --terapkan
 ```
+
+Menyiapkan data untuk dianalisis:
+
+```
+uv run python -m joderma_survey --basis joderma.db ekspor \
+    --folder ekspor --awal 2026-10-01 --akhir 2026-10-31
+```
+
+Menghasilkan `konteks.md`, `ringkasan.json`, `jawaban.csv`, dan `teks.csv`.
+Berkas `konteks.md` memuat batas penafsiran dan harus dibaca lebih dulu oleh
+siapa pun yang menganalisis.
 
 Peubah lingkungan: `JODERMA_URL_SURVEI` (alamat halaman survei publik) dan
 `JODERMA_KUNCI_RAHASIA` (kunci sesi; harus tetap, kalau tidak semua pengguna

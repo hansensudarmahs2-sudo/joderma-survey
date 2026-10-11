@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 from . import db as basis
+from .cabang import CABANG
 from .pengguna import (
     PANJANG_SANDI_MINIMUM,
     PERAN,
@@ -135,6 +136,45 @@ def _pertanyaan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _ekspor(args: argparse.Namespace) -> int:
+    from .ekspor import ekspor
+    from .perapian import Periode
+    from .tanggal import TanggalTidakDikenal, dari_iso
+
+    periode = None
+    if args.awal or args.akhir:
+        if not (args.awal and args.akhir):
+            print("--awal dan --akhir harus diisi berdua.", file=sys.stderr)
+            return 1
+        try:
+            periode = Periode(dari_iso(args.awal), dari_iso(args.akhir))
+        except TanggalTidakDikenal as galat:
+            print(f"Tanggal ditolak: {galat}", file=sys.stderr)
+            return 1
+        if periode.akhir < periode.awal:
+            print("Periode berakhir sebelum dimulai.", file=sys.stderr)
+            return 1
+
+    conn = basis.buka(args.basis)
+    basis.migrasi(conn)
+    try:
+        hasil = ekspor(
+            conn,
+            args.folder,
+            periode=periode,
+            cabang_kode=args.cabang,
+            set_pertanyaan=args.set,
+            sertakan_dokter=args.sertakan_dokter,
+        )
+    finally:
+        conn.close()
+    print(hasil.ringkas())
+    print()
+    print("Berikan folder itu ke Claude agent, dan minta ia membaca "
+          "konteks.md lebih dulu.")
+    return 0
+
+
 def _jalankan_survei(args: argparse.Namespace) -> int:
     from .web_survei import buat_app
 
@@ -184,6 +224,20 @@ def utama(argv: list[str] | None = None) -> int:
         "saja, bukan perubahan makna (boleh diulang)",
     )
     p.set_defaults(fungsi=_pertanyaan)
+
+    p = anak.add_parser("ekspor", help="tulis berkas analisis untuk Claude agent")
+    p.add_argument("--folder", default=Path("ekspor"), type=Path)
+    p.add_argument("--awal", help="tanggal awal periode, YYYY-MM-DD")
+    p.add_argument("--akhir", help="tanggal akhir periode, YYYY-MM-DD")
+    p.add_argument("--cabang", choices=sorted(CABANG), help="kode cabang")
+    p.add_argument("--set", default="RJ", help="set pertanyaan")
+    p.add_argument(
+        "--sertakan-dokter",
+        action="store_true",
+        dest="sertakan_dokter",
+        help="sertakan pemetaan kode dokter ke namanya",
+    )
+    p.set_defaults(fungsi=_ekspor)
 
     p = anak.add_parser("jalankan", help="jalankan aplikasi admin")
     p.add_argument("--alamat", default="127.0.0.1")
