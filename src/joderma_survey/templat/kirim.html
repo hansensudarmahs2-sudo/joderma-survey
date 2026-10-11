@@ -1,0 +1,99 @@
+{% extends "dasar.html" %}
+{% block judul %}Daftar kirim &middot; JoDerma Survei{% endblock %}
+{% block isi %}
+<h1>Daftar kirim</h1>
+<p class="catatan">
+  {{ baris|length }} pasien menunggu dikirimi link.
+  Cari kontaknya di WhatsApp dengan teks pencarian, lalu tempel isi pesannya.
+  Tidak ada tombol &ldquo;terkirim&rdquo; &mdash; link berlaku 30 hari dan
+  pasien tidak akan dikirimi lagi selama itu.
+</p>
+
+<div class="bar">
+  <form method="get" style="display:flex; gap:8px; align-items:center">
+    <label for="cabang" style="margin:0">Cabang</label>
+    <select id="cabang" name="cabang" onchange="this.form.submit()" style="width:auto">
+      <option value="">Semua</option>
+      {% for kode, c in cabang.items() %}
+        <option value="{{ kode }}" {% if dipilih == kode %}selected{% endif %}>{{ c.nama }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if baris %}
+<table>
+  <thead>
+    <tr>
+      <th>Pasien</th>
+      <th>Cabang</th>
+      <th class="nowrap">Berlaku sampai</th>
+      <th>Salin</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for b in baris %}
+    <tr>
+      <td>
+        {{ b.nama }}
+        <span class="rm">{{ b.rm }}</span>
+        {% if b.keraguan %}
+          <span class="ragu">Periksa dulu: {{ b.keraguan|join('; ') }}</span>
+        {% endif %}
+      </td>
+      <td class="mini">{{ b.cabang_nama }}</td>
+      <td class="mini nowrap">{{ b.kedaluwarsa_pada }}</td>
+      <td class="nowrap">
+        <button type="button" data-salin="{{ b.teks_pencarian }}">Teks pencarian</button>
+        <button type="button" data-salin="{{ b.teks_pesan }}">Isi pesan</button>
+      </td>
+      <td>
+        <form method="post"
+              action="{{ url_for('batalkan', token=b.token, cabang=dipilih) }}"
+              style="margin:0"
+              onsubmit="return confirm('Batalkan undangan untuk {{ b.nama }}? Pasien akan muncul lagi di unggahan berikutnya.')">
+          <input type="hidden" name="csrf" value="{{ token_csrf }}">
+          <button class="bahaya" title="Kontak tidak ditemukan di WhatsApp">Tidak ditemukan</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="kartu">
+  <p style="margin:0">Tidak ada yang perlu dikirim. Daftar terisi setelah
+  direktur operasional mengunggah laporan Omnicare.</p>
+</div>
+{% endif %}
+
+<script>
+document.addEventListener('click', function (ev) {
+  var tombol = ev.target.closest('[data-salin]');
+  if (!tombol) return;
+  var teks = tombol.getAttribute('data-salin');
+  var semula = tombol.textContent;
+  function beres(ok) {
+    tombol.textContent = ok ? 'Tersalin' : 'Gagal salin';
+    setTimeout(function () { tombol.textContent = semula; }, 1200);
+  }
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(teks).then(function () { beres(true); },
+                                             function () { beres(false); });
+  } else {
+    // Jalur cadangan untuk peramban lama atau koneksi tanpa HTTPS.
+    var kotak = document.createElement('textarea');
+    kotak.value = teks;
+    kotak.style.position = 'fixed';
+    kotak.style.opacity = '0';
+    document.body.appendChild(kotak);
+    kotak.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(kotak);
+    beres(ok);
+  }
+});
+</script>
+{% endblock %}

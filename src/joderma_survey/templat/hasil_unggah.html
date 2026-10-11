@@ -1,0 +1,85 @@
+{% extends "dasar.html" %}
+{% block judul %}Hasil unggahan &middot; JoDerma Survei{% endblock %}
+{% block isi %}
+<h1>Laporan terbaca</h1>
+<p class="catatan">{{ ringkasan.nama_berkas }} &rarr; {{ ringkasan.cabang.nama }}</p>
+
+<div class="kartu">
+  <dl class="ringkas">
+    <dt>Periode</dt><dd>{{ ringkasan.periode_awal }} s/d {{ ringkasan.periode_akhir }}</dd>
+    <dt>Baris data</dt><dd>{{ ringkasan.baris_data }} ({{ ringkasan.baris_catatan_kaki }} baris catatan kaki dilewati)</dd>
+    <dt>Baris dipakai</dt><dd>{{ ringkasan.baris_dipakai }}</dd>
+    <dt>Pasien unik</dt><dd>{{ ringkasan.pasien_unik }}</dd>
+    <dt>Layanan</dt><dd>{% for k, v in ringkasan.layanan.items() %}{{ k }}: {{ v }}{% if not loop.last %} &middot; {% endif %}{% endfor %}</dd>
+    <dt>Transaksi baru</dt>
+    <dd>{{ simpan.transaksi_baru }}{% if simpan.transaksi_sudah_ada %} ({{ simpan.transaksi_sudah_ada }} sudah dikenal){% endif %}</dd>
+    <dt>Pasien baru</dt><dd>{{ simpan.pasien_baru }}</dd>
+  </dl>
+  {% if simpan.unggahan_ulang %}
+  <div class="pesan berhasil" style="margin-top:14px">
+    Seluruh transaksi sudah dikenal. Berkas ini sepertinya sudah pernah
+    diunggah, dan tidak ada yang terduplikasi.
+  </div>
+  {% endif %}
+</div>
+
+<h2>Link survei</h2>
+<div class="kartu">
+  <dl class="ringkas">
+    <dt>Link dibuat</dt><dd><strong>{{ buat.jumlah_dibuat }}</strong> dari {{ buat.calon }} calon</dd>
+    {% if buat.diparkir_otc %}
+    <dt>Diparkir</dt>
+    <dd>{{ buat.diparkir_otc }} pasien hanya membeli produk; set pertanyaan OTC belum ada</dd>
+    {% endif %}
+  </dl>
+  {% if buat.dilewati %}
+  <p class="mini" style="margin:12px 0 0"><strong>Dilewati karena masa jeda:</strong></p>
+  <ul class="rinci">
+    {% for alasan, jumlah in buat.dilewati.items() %}<li>{{ jumlah }} pasien &mdash; {{ alasan }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if buat.jumlah_dibuat %}
+  <p style="margin:14px 0 0"><a class="tombol" href="{{ url_for('halaman_kirim') }}">Buka daftar kirim</a></p>
+  {% endif %}
+</div>
+
+{% if ringkasan.dilewati or ringkasan.rm_dinormalisasi or ringkasan.rm_tidak_dikenal or ringkasan.keraguan or ringkasan.peringatan %}
+<h2>Yang perlu ditinjau</h2>
+<div class="kartu">
+  {% if ringkasan.dilewati %}
+  <p class="mini" style="margin:0"><strong>Baris dilewati:</strong></p>
+  <ul class="rinci">
+    {% for alasan, jumlah in ringkasan.dilewati.items() %}<li>{{ jumlah }} &mdash; {{ alasan }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if ringkasan.rm_dinormalisasi %}
+  <p class="mini" style="margin:12px 0 0"><strong>Nomor RM dinormalisasi ({{ ringkasan.rm_dinormalisasi|length }} baris):</strong></p>
+  <ul class="rinci">
+    {% for nomor, asli, baku in ringkasan.rm_dinormalisasi %}<li>baris {{ nomor }}: {{ asli }} &rarr; {{ baku }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if ringkasan.rm_tidak_dikenal %}
+  <p class="mini" style="margin:12px 0 0"><strong>Nomor RM tidak dikenal ({{ ringkasan.rm_tidak_dikenal|length }} baris):</strong></p>
+  <ul class="rinci">
+    {% for nomor, asli, catatan in ringkasan.rm_tidak_dikenal %}<li>baris {{ nomor }}: {{ asli }} &mdash; {{ catatan }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if ringkasan.keraguan %}
+  <p class="mini" style="margin:12px 0 0"><strong>Patut diragukan sebagai pasien perorangan ({{ ringkasan.keraguan|length }}):</strong></p>
+  <ul class="rinci">
+    {% for rm, nama, alasan in ringkasan.keraguan %}<li>{{ nama }} ({{ rm }}) &mdash; {{ alasan|join('; ') }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if ringkasan.peringatan %}
+  <p class="mini" style="margin:12px 0 0"><strong>Peringatan:</strong></p>
+  <ul class="rinci">
+    {% for p in ringkasan.peringatan %}<li>{{ p }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

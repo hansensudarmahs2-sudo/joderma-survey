@@ -69,3 +69,6 @@ config/lokal.yaml
 # operasional klinik. Tidak untuk dibuka ke publik.
 PRD*.md
 docs/
+
+# Konfigurasi peluncur lokal (menunjuk basis data demo di luar proyek)
+.claude/launch.json

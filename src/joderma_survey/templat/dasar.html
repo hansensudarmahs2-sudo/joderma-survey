@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block judul %}JoDerma Survei{% endblock %}</title>
+<style>
+  :root {
+    --tinta: #1a1a1a; --redup: #666; --garis: #ddd; --latar: #fafafa;
+    --kartu: #fff; --utama: #0b6b5e; --galat: #a3261f; --berhasil: #1c6b2c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+         color: var(--tinta); background: var(--latar); }
+  header { background: var(--kartu); border-bottom: 1px solid var(--garis);
+           padding: 12px 20px; display: flex; align-items: center; gap: 20px;
+           flex-wrap: wrap; }
+  header strong { color: var(--utama); }
+  header nav { display: flex; gap: 16px; margin-left: auto; align-items: center;
+               flex-wrap: wrap; }
+  header a { color: var(--tinta); text-decoration: none; }
+  header a:hover { text-decoration: underline; }
+  .peran { color: var(--redup); font-size: 13px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 21px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 24px 0 8px; }
+  .catatan { color: var(--redup); font-size: 13px; margin: 0 0 20px; }
+  .kartu { background: var(--kartu); border: 1px solid var(--garis);
+           border-radius: 8px; padding: 18px; margin-bottom: 18px; }
+  table { width: 100%; border-collapse: collapse; background: var(--kartu); }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--garis);
+           vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+       color: var(--redup); font-weight: 600; }
+  tbody tr:hover { background: #f5f8f7; }
+  .rm { font-family: ui-monospace, monospace; font-size: 13px; color: var(--redup); }
+  button, .tombol { font: inherit; padding: 6px 11px; border-radius: 6px;
+            border: 1px solid var(--garis); background: var(--kartu);
+            color: var(--tinta); cursor: pointer; }
+  button:hover { border-color: var(--utama); color: var(--utama); }
+  button.utama { background: var(--utama); color: #fff; border-color: var(--utama); }
+  button.utama:hover { opacity: .9; color: #fff; }
+  button.bahaya:hover { border-color: var(--galat); color: var(--galat); }
+  .pesan { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px;
+           border: 1px solid; }
+  .pesan.galat { color: var(--galat); border-color: #e8bfbc; background: #fdf4f3; }
+  .pesan.berhasil { color: var(--berhasil); border-color: #bfe0c6; background: #f3faf5; }
+  .ragu { color: #8a5a00; font-size: 12px; display: block; margin-top: 3px; }
+  label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; }
+  input[type=text], input[type=password], input[type=file], select {
+    font: inherit; padding: 8px 10px; border: 1px solid var(--garis);
+    border-radius: 6px; width: 100%; max-width: 420px; background: var(--kartu); }
+  .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+         margin-bottom: 14px; }
+  .nowrap { white-space: nowrap; }
+  dl.ringkas { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px;
+               margin: 0; font-size: 14px; }
+  dl.ringkas dt { color: var(--redup); }
+  dl.ringkas dd { margin: 0; }
+  ul.rinci { margin: 6px 0 0; padding-left: 20px; font-size: 14px; color: var(--redup); }
+  .mini { font-size: 13px; color: var(--redup); }
+</style>
+</head>
+<body>
+<header>
+  <strong>JoDerma Survei</strong>
+  {% if pengguna %}
+  <nav>
+    {% if pengguna.boleh('unggah_laporan') %}<a href="{{ url_for('halaman_unggah') }}">Unggah laporan</a>{% endif %}
+    {% if pengguna.boleh('lihat_daftar_kirim') %}<a href="{{ url_for('halaman_kirim') }}">Daftar kirim</a>{% endif %}
+    {% if pengguna.boleh('lihat_hasil') %}<a href="{{ url_for('halaman_hasil') }}">Hasil survei</a>{% endif %}
+    <span class="peran">{{ pengguna.nama }} &middot; {{ pengguna.peran }}</span>
+    <form method="post" action="{{ url_for('halaman_keluar') }}" style="margin:0">
+      <input type="hidden" name="csrf" value="{{ token_csrf }}">
+      <button>Keluar</button>
+    </form>
+  </nav>
+  {% endif %}
+</header>
+<main>
+  {% for jenis, pesan in get_flashed_messages(with_categories=true) %}
+    <div class="pesan {{ jenis }}">{{ pesan }}</div>
+  {% endfor %}
+  {% block isi %}{% endblock %}
+</main>
+</body>
+</html>

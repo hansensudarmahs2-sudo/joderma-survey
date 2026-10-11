@@ -320,6 +320,7 @@ def baca_lembar(lembar: Lembar, nama_berkas: str, kode_cabang: str) -> Laporan:
     tanggals: list[object] = []
     asal_rm: dict[str, set[str]] = {}
     nama_per_rm: dict[str, set[str]] = {}
+    rm_diragukan: set[str] = set()
 
     for row in range(baris_header + 1, lembar.nrows):
         nomor_baris = row + 1
@@ -388,7 +389,11 @@ def baca_lembar(lembar: Lembar, nama_berkas: str, kode_cabang: str) -> Laporan:
             continue
 
         keraguan = curiga_bukan_pasien(nama, rm)
-        if keraguan:
+        if keraguan and rm not in rm_diragukan:
+            # Satu pasien satu baris di ringkasan, walau punya banyak
+            # transaksi: akun lembaga bisa muncul berkali-kali dalam sebulan
+            # dan tidak perlu diulang di daftar yang dibaca direktur.
+            rm_diragukan.add(rm)
             ringkasan.keraguan.append((rm, nama, keraguan))
 
         asal_rm.setdefault(rm, set()).add(hasil_rm.asli.strip().upper())

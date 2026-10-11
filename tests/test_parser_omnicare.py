@@ -303,6 +303,35 @@ def test_akun_lembaga_ditandai_tapi_tetap_dipakai() -> None:
     assert len(lap.ringkasan.keraguan) == 1
 
 
+def test_keraguan_tidak_diulang_per_baris() -> None:
+    """Akun lembaga bisa punya banyak transaksi sebulan; cukup satu baris.
+
+    Di laporan Jemur, Klinik Utama Dryn Dipo punya 3 baris OTC.
+    """
+    lap = baca(
+        transaksi(no_id="J00000002", pasien="Klinik Utama Dryn Dipo",
+                  layanan="OTC", dokter="-", faktur=26090559.0),
+        transaksi(no_id="J00000002", pasien="Klinik Utama Dryn Dipo",
+                  layanan="OTC", dokter="-", faktur=26090616.0),
+        transaksi(no_id="J00000002", pasien="Klinik Utama Dryn Dipo",
+                  layanan="OTC", dokter="-", faktur=26090743.0),
+    )
+    assert lap.ringkasan.baris_dipakai == 3
+    assert len(lap.ringkasan.keraguan) == 1, "satu pasien, satu baris ringkasan"
+    assert lap.ringkasan.keraguan[0][0] == "J00002"
+    assert all(b.keraguan for b in lap.baris), "tiap baris tetap ditandai"
+
+
+def test_keraguan_beberapa_pasien_berbeda() -> None:
+    lap = baca(
+        transaksi(no_id="J00000002", pasien="Klinik Utama Dryn Dipo",
+                  layanan="OTC", dokter="-"),
+        transaksi(no_id="J00994", pasien="Dr Hansen", faktur=26090002.0),
+        transaksi(no_id="J00994", pasien="Dr Hansen", faktur=26090003.0),
+    )
+    assert len(lap.ringkasan.keraguan) == 2
+
+
 def test_hitungan_layanan() -> None:
     lap = baca(
         transaksi(layanan="RJ"),

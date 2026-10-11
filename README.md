@@ -7,17 +7,29 @@ JoDerma adalah klinik kulit dengan dua cabang.
 
 ## Status
 
-**Tahap 2 selesai.** Parser laporan, pembersihan data, basis data, dan aturan jeda sudah ada beserta tesnya (492 tes).
+**Tahap 3 selesai.** Parser laporan, basis data, aturan jeda, pembuatan link, dan daftar kirim untuk CS sudah jalan (597 tes).
 
 | Tahap | Isi | Status |
 |---|---|---|
 | 0 | Kerangka proyek, modul tanggal + tes | **selesai** |
 | 1 | Parser laporan + pembersihan data + tes | **selesai** |
 | 2 | Basis data + aturan jeda kirim + tes | **selesai** |
-| 3 | Pembuatan link + daftar kirim CS | belum |
+| 3 | Pembuatan link + daftar kirim CS | **selesai** |
 | 4 | Halaman survei publik + survey editor | menunggu kerangka survei |
 | 5 | Perapian data + ekspor anonim | belum |
 | 6 | Laporan PDF | belum |
+
+## Menjalankan
+
+```
+uv run python -m joderma_survey --basis joderma.db siapkan
+uv run python -m joderma_survey --basis joderma.db pengguna --nama <nama> --peran direktur
+uv run python -m joderma_survey --basis joderma.db jalankan --porta 8000
+```
+
+Peubah lingkungan: `JODERMA_URL_SURVEI` (alamat halaman survei publik) dan
+`JODERMA_KUNCI_RAHASIA` (kunci sesi; harus tetap, kalau tidak semua pengguna
+keluar setiap aplikasi dijalankan ulang).
 
 ## Menjalankan tes
 
@@ -41,6 +53,18 @@ lintas cabang, karena satu pasien punya satu nomor rekam medis.
 
 `terblokir_sampai` dihitung saat ditanya, tidak disimpan sebagai penanda —
 jadi tidak perlu penjadwal yang bisa mati tanpa ketahuan.
+
+## Hak akses
+
+| Peran | Daftar kirim | Unggah laporan | Hasil survei | Kelola pengguna |
+|---|---|---|---|---|
+| Owner | ya | ya | ya | tidak |
+| Direktur operasional | ya | ya | ya | ya |
+| CS | ya | **tidak** | **tidak** | tidak |
+
+Aplikasi admin dan halaman survei publik adalah **dua aplikasi terpisah**,
+bukan satu aplikasi dengan aturan rute, sehingga subdomain survei secara
+fisik tidak punya kode admin untuk dijangkau.
 
 ## Pemisahan identitas dan jawaban
 

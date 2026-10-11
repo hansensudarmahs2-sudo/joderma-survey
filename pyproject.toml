@@ -8,6 +8,8 @@ dependencies = [
     # struktur OLE2 cacat sehingga pandas.read_excel() gagal dengan
     # CompDocError. Lihat docs/temuan-data.md butir T1.
     "xlrd>=2.0.1",
+    # Kerangka web paling sederhana yang memadai; tanpa kerangka JavaScript.
+    "flask>=3.0",
 ]
 
 [dependency-groups]
