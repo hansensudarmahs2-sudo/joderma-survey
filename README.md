@@ -7,13 +7,13 @@ JoDerma adalah klinik kulit dengan dua cabang.
 
 ## Status
 
-**Tahap 1 selesai.** Parser laporan, pembersihan data, dan modul tanggal sudah ada beserta tesnya (407 tes).
+**Tahap 2 selesai.** Parser laporan, pembersihan data, basis data, dan aturan jeda sudah ada beserta tesnya (492 tes).
 
 | Tahap | Isi | Status |
 |---|---|---|
 | 0 | Kerangka proyek, modul tanggal + tes | **selesai** |
 | 1 | Parser laporan + pembersihan data + tes | **selesai** |
-| 2 | Basis data + aturan jeda kirim + tes | belum |
+| 2 | Basis data + aturan jeda kirim + tes | **selesai** |
 | 3 | Pembuatan link + daftar kirim CS | belum |
 | 4 | Halaman survei publik + survey editor | menunggu kerangka survei |
 | 5 | Perapian data + ekspor anonim | belum |
@@ -41,6 +41,16 @@ lintas cabang, karena satu pasien punya satu nomor rekam medis.
 
 `terblokir_sampai` dihitung saat ditanya, tidak disimpan sebagai penanda —
 jadi tidak perlu penjadwal yang bisa mati tanpa ketahuan.
+
+## Pemisahan identitas dan jawaban
+
+Jawaban survei disimpan **tanpa kaitan ke pasien**. Tidak ada kolom yang
+menghubungkan tabel jawaban ke tabel pasien maupun ke tabel undangan.
+Satu-satunya jembatan adalah tabel izin, yang barisnya hanya dibuat bila
+pasien menjawab bahwa ia boleh dihubungi untuk tindak lanjut.
+
+Aturan jeda tetap bisa berjalan karena yang dicatat di sisi identitas hanya
+*bahwa* seseorang sudah mengisi dan *tanggalnya*, bukan apa jawabannya.
 
 ## Privasi
 
