@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>{% block judul %}Survei {{ klinik }}{% endblock %}</title>
+<style>
+  :root {
+    --tinta: #1a1a1a; --redup: #5c5c5c; --garis: #dcdcdc; --latar: #f6f7f7;
+    --kartu: #fff; --utama: #0b6b5e; --galat: #a3261f;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; padding: 0 16px 48px;
+         font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+         color: var(--tinta); background: var(--latar); }
+  .bungkus { max-width: 620px; margin: 0 auto; }
+  header { padding: 28px 0 8px; }
+  header .klinik { color: var(--utama); font-weight: 700; letter-spacing: .01em; }
+  h1 { font-size: 23px; line-height: 1.3; margin: 10px 0 8px; }
+  p.antar { color: var(--redup); margin: 0 0 22px; }
+  .kartu { background: var(--kartu); border: 1px solid var(--garis);
+           border-radius: 12px; padding: 18px 18px 20px; margin-bottom: 14px; }
+  .tanya { font-weight: 600; margin: 0 0 14px; }
+  .tanya .nomor { color: var(--redup); font-weight: 400; margin-right: 6px; }
+  .wajib { color: var(--galat); }
+  /* Tombol skala: sasaran sentuh besar, muat satu baris di layar ponsel */
+  .skala { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .skala input { position: absolute; opacity: 0; pointer-events: none; }
+  .skala label { display: flex; flex-direction: column; align-items: center;
+                 justify-content: flex-start; gap: 3px; min-height: 78px;
+                 padding: 9px 3px; border: 1.5px solid var(--garis);
+                 border-radius: 10px; cursor: pointer; text-align: center;
+                 background: var(--kartu); transition: none;
+                 overflow-wrap: anywhere; hyphens: auto; }
+  .skala label .angka { font-size: 19px; font-weight: 700; }
+  /* Label kata tetap tampil di semua lebar: skala tanpa jangkar kata
+     ditafsirkan berbeda-beda antar responden, dan itu merusak
+     perbandingan antar periode. Dibiarkan membungkus dua baris. */
+  .skala label .kata { font-size: 10.5px; line-height: 1.18; color: var(--redup); }
+  .skala label:hover { border-color: var(--utama); }
+  .skala input:checked + label { border-color: var(--utama);
+                                 background: #eaf4f2; }
+  .skala input:checked + label .angka,
+  .skala input:checked + label .kata { color: var(--utama); }
+  .skala input:focus-visible + label { outline: 2px solid var(--utama);
+                                       outline-offset: 2px; }
+  textarea { width: 100%; font: inherit; padding: 11px 12px; border-radius: 10px;
+             border: 1.5px solid var(--garis); min-height: 96px; resize: vertical;
+             background: var(--kartu); color: var(--tinta); }
+  textarea:focus { outline: none; border-color: var(--utama); }
+  .yatidak { display: flex; gap: 10px; }
+  .yatidak input { position: absolute; opacity: 0; pointer-events: none; }
+  .yatidak label { flex: 1; text-align: center; padding: 13px 10px;
+                   border: 1.5px solid var(--garis); border-radius: 10px;
+                   cursor: pointer; background: var(--kartu); font-weight: 600; }
+  .yatidak input:checked + label { border-color: var(--utama);
+                                   background: #eaf4f2; color: var(--utama); }
+  .yatidak input:focus-visible + label { outline: 2px solid var(--utama);
+                                         outline-offset: 2px; }
+  button.kirim { width: 100%; font: inherit; font-weight: 700; font-size: 17px;
+                 padding: 15px; border-radius: 10px; border: none;
+                 background: var(--utama); color: #fff; cursor: pointer;
+                 margin-top: 6px; }
+  button.kirim:hover { opacity: .92; }
+  .galat { background: #fdf4f3; border: 1px solid #e8bfbc; color: var(--galat);
+           border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; }
+  .catatan { color: var(--redup); font-size: 13.5px; margin: 18px 0 0; }
+  .hening { display: none; }
+  footer { color: var(--redup); font-size: 13px; text-align: center;
+           margin-top: 26px; }
+  @media (max-width: 380px) {
+    body { padding-left: 12px; padding-right: 12px; }
+    .kartu { padding: 16px 13px 18px; }
+    .skala { gap: 5px; }
+    .skala label { padding: 8px 2px; }
+    .skala label .kata { font-size: 9.5px; }
+  }
+</style>
+</head>
+<body>
+<div class="bungkus">
+{% block isi %}{% endblock %}
+</div>
+</body>
+</html>

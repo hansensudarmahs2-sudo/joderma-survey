@@ -1,0 +1,96 @@
+{% extends "survei_dasar.html" %}
+{% block judul %}Survei {{ klinik }}{% endblock %}
+{% set label_skala = {1: 'Sangat buruk', 2: 'Buruk', 3: 'Cukup', 4: 'Baik', 5: 'Sangat baik'} %}
+{% block isi %}
+<header>
+  <span class="klinik">{{ klinik }}{% if cabang_nama %} {{ cabang_nama }}{% endif %}</span>
+  <h1>Halo {{ undangan.nama }}</h1>
+</header>
+<p class="antar">
+  Terima kasih sudah berkunjung. Pengisian survei ini sekitar 1 menit.
+  Jawaban Anda tidak kami simpan bersama nama Anda.
+</p>
+
+{% if galat %}
+<div class="galat">{{ galat }}</div>
+{% endif %}
+
+<form method="post" novalidate>
+  <input type="hidden" name="mulai" value="{{ mulai }}">
+
+  {% for p in pertanyaan %}
+    {% set nilai_lama = terkirim.get(p.kode) if terkirim else None %}
+    <div class="kartu{% if p.tampil_bila %} bersyarat hening{% endif %}"
+         {% if p.tampil_bila %}data-tampil-bila="{{ p.tampil_bila }}"{% endif %}>
+      <p class="tanya">
+        <span class="nomor">{{ loop.index }}.</span>{{ p.teks }}{% if p.wajib %} <span class="wajib" title="wajib diisi">*</span>{% endif %}
+      </p>
+
+      {% if p.jenis == 'skala_1_5' %}
+        <div class="skala">
+          {% for n in range(1, 6) %}
+            <input type="radio" id="{{ p.kode }}-{{ n }}" name="{{ p.kode }}"
+                   value="{{ n }}" class="nilai-skala"
+                   {% if nilai_lama == n|string %}checked{% endif %}>
+            <label for="{{ p.kode }}-{{ n }}">
+              <span class="angka">{{ n }}</span>
+              <span class="kata">{{ label_skala[n] }}</span>
+            </label>
+          {% endfor %}
+        </div>
+
+      {% elif p.jenis == 'ya_tidak' %}
+        <div class="yatidak">
+          <input type="radio" id="{{ p.kode }}-ya" name="{{ p.kode }}" value="ya"
+                 {% if nilai_lama == 'ya' %}checked{% endif %}>
+          <label for="{{ p.kode }}-ya">Boleh</label>
+          <input type="radio" id="{{ p.kode }}-tidak" name="{{ p.kode }}" value="tidak"
+                 {% if nilai_lama == 'tidak' %}checked{% endif %}>
+          <label for="{{ p.kode }}-tidak">Tidak</label>
+        </div>
+
+      {% else %}
+        <textarea name="{{ p.kode }}" rows="3"
+                  maxlength="2000">{{ nilai_lama or '' }}</textarea>
+      {% endif %}
+    </div>
+  {% endfor %}
+
+  <button class="kirim" type="submit">Kirim jawaban</button>
+  <p class="catatan">
+    Hanya pertanyaan bertanda <span class="wajib">*</span> yang wajib diisi.
+    Sisanya boleh dilewati.
+  </p>
+</form>
+
+<footer>{{ klinik }}</footer>
+
+<script>
+// Pertanyaan bersyarat muncul begitu ada nilai rendah. Tanpa JavaScript,
+// kartu bersyarat ditampilkan sejak awal (lihat noscript di bawah) sehingga
+// pasien tetap bisa mengisinya -- isinya tetap diabaikan server bila tidak
+// ada nilai rendah.
+(function () {
+  var AMBANG = {{ ambang_rendah }};
+  var bersyarat = Array.prototype.slice.call(
+    document.querySelectorAll('.bersyarat'));
+  if (!bersyarat.length) return;
+
+  function perbarui() {
+    var rendah = Array.prototype.some.call(
+      document.querySelectorAll('.nilai-skala'),
+      function (el) { return el.checked && parseInt(el.value, 10) <= AMBANG; });
+    bersyarat.forEach(function (kartu) {
+      kartu.classList.toggle('hening', !rendah);
+    });
+  }
+  document.addEventListener('change', function (ev) {
+    if (ev.target.classList.contains('nilai-skala')) perbarui();
+  });
+  perbarui();
+})();
+</script>
+<noscript>
+  <style>.bersyarat.hening { display: block; }</style>
+</noscript>
+{% endblock %}

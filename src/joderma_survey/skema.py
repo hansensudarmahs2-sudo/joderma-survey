@@ -200,10 +200,20 @@ VALUES
 """
 
 
+# Mencatat kapan link pertama kali dibuka pasien. Memisahkan "link tidak
+# pernah sampai" dari "sampai tapi tidak diisi" -- yang pertama masalah
+# pengiriman, yang kedua masalah surveinya. Tanggal saja, tanpa jam, sama
+# alasannya dengan diisi_pada.
+_V3_DIBUKA: Final[str] = """
+ALTER TABLE undangan ADD COLUMN dibuka_pada TEXT;
+"""
+
+
 #: Daftar migrasi: (versi, SQL). Dijalankan berurutan, sekali saja.
 MIGRASI: Final[tuple[tuple[int, str], ...]] = (
     (1, _V1_TABEL),
     (2, _V2_PERTANYAAN_RJ),
+    (3, _V3_DIBUKA),
 )
 
 VERSI_TERBARU: Final[int] = max(versi for versi, _ in MIGRASI)

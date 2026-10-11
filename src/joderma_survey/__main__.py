@@ -16,7 +16,13 @@ import sys
 from pathlib import Path
 
 from . import db as basis
-from .pengguna import PERAN, SandiTidakValid, buat_pengguna, cari_pengguna
+from .pengguna import (
+    PANJANG_SANDI_MINIMUM,
+    PERAN,
+    SandiTidakValid,
+    buat_pengguna,
+    cari_pengguna,
+)
 from .skema import VERSI_TERBARU
 
 
@@ -44,7 +50,17 @@ def _pengguna(args: argparse.Namespace) -> int:
         print(f"Pengguna {args.nama!r} sudah ada.", file=sys.stderr)
         conn.close()
         return 1
-    sandi = getpass.getpass("Sandi: ")
+    # Panjang diperiksa sebelum minta ulangan, supaya tidak perlu mengetik
+    # dua kali hanya untuk ditolak.
+    sandi = getpass.getpass(f"Sandi (minimal {PANJANG_SANDI_MINIMUM} karakter): ")
+    if len(sandi) < PANJANG_SANDI_MINIMUM:
+        print(
+            f"Sandi ditolak: baru {len(sandi)} karakter, "
+            f"minimal {PANJANG_SANDI_MINIMUM}.",
+            file=sys.stderr,
+        )
+        conn.close()
+        return 1
     if sandi != getpass.getpass("Ulangi sandi: "):
         print("Sandi tidak sama.", file=sys.stderr)
         conn.close()
@@ -73,6 +89,19 @@ def _jalankan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _jalankan_survei(args: argparse.Namespace) -> int:
+    from .web_survei import buat_app
+
+    conn = basis.buka(args.basis)
+    basis.migrasi(conn)
+    conn.close()
+    # Aplikasi terpisah dari admin, dan di mini PC dijalankan di porta sendiri
+    # yang dipetakan ke subdomain survei lewat Cloudflare Tunnel.
+    app = buat_app(args.basis)
+    app.run(host=args.alamat, port=args.porta, debug=args.debug)
+    return 0
+
+
 def utama(argv: list[str] | None = None) -> int:
     induk = argparse.ArgumentParser(
         prog="joderma_survey", description="Sistem survei pelanggan JoDerma"
@@ -95,6 +124,15 @@ def utama(argv: list[str] | None = None) -> int:
     p.add_argument("--porta", default=8000, type=int)
     p.add_argument("--debug", action="store_true")
     p.set_defaults(fungsi=_jalankan)
+
+    p = anak.add_parser(
+        "jalankan-survei",
+        help="jalankan halaman survei publik (aplikasi terpisah dari admin)",
+    )
+    p.add_argument("--alamat", default="127.0.0.1")
+    p.add_argument("--porta", default=8001, type=int)
+    p.add_argument("--debug", action="store_true")
+    p.set_defaults(fungsi=_jalankan_survei)
 
     args = induk.parse_args(argv)
     return int(args.fungsi(args))

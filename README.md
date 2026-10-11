@@ -7,7 +7,7 @@ JoDerma adalah klinik kulit dengan dua cabang.
 
 ## Status
 
-**Tahap 3 selesai.** Parser laporan, basis data, aturan jeda, pembuatan link, dan daftar kirim untuk CS sudah jalan (597 tes).
+**Tahap 4 selesai.** Alur lengkap sudah jalan: unggah laporan, buat link, daftar kirim CS, sampai pasien mengisi survei (681 tes).
 
 | Tahap | Isi | Status |
 |---|---|---|
@@ -15,7 +15,7 @@ JoDerma adalah klinik kulit dengan dua cabang.
 | 1 | Parser laporan + pembersihan data + tes | **selesai** |
 | 2 | Basis data + aturan jeda kirim + tes | **selesai** |
 | 3 | Pembuatan link + daftar kirim CS | **selesai** |
-| 4 | Halaman survei publik + survey editor | menunggu kerangka survei |
+| 4 | Halaman survei publik | **selesai** (survey editor menyusul) |
 | 5 | Perapian data + ekspor anonim | belum |
 | 6 | Laporan PDF | belum |
 
@@ -25,7 +25,13 @@ JoDerma adalah klinik kulit dengan dua cabang.
 uv run python -m joderma_survey --basis joderma.db siapkan
 uv run python -m joderma_survey --basis joderma.db pengguna --nama <nama> --peran direktur
 uv run python -m joderma_survey --basis joderma.db jalankan --porta 8000
+uv run python -m joderma_survey --basis joderma.db jalankan-survei --porta 8001
 ```
+
+Dua aplikasi terpisah: `jalankan` untuk admin (porta 8000) dan
+`jalankan-survei` untuk halaman pasien (porta 8001). Di mini PC keduanya
+dipetakan ke subdomain berbeda lewat Cloudflare Tunnel, dan hanya porta
+survei yang berada di luar kebijakan Cloudflare Access.
 
 Peubah lingkungan: `JODERMA_URL_SURVEI` (alamat halaman survei publik) dan
 `JODERMA_KUNCI_RAHASIA` (kunci sesi; harus tetap, kalau tidak semua pengguna
