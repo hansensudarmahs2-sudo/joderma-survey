@@ -26,27 +26,36 @@
   .tanya { font-weight: 600; margin: 0 0 14px; }
   .tanya .nomor { color: var(--redup); font-weight: 400; margin-right: 6px; }
   .wajib { color: var(--galat); }
-  /* Tombol skala: sasaran sentuh besar, muat satu baris di layar ponsel */
-  .skala { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
-  .skala input { position: absolute; opacity: 0; pointer-events: none; }
-  .skala label { display: flex; flex-direction: column; align-items: center;
-                 justify-content: flex-start; gap: 3px; min-height: 78px;
-                 padding: 9px 3px; border: 1.5px solid var(--garis);
-                 border-radius: 10px; cursor: pointer; text-align: center;
-                 background: var(--kartu); transition: none;
-                 overflow-wrap: anywhere; hyphens: auto; }
-  .skala label .angka { font-size: 19px; font-weight: 700; }
-  /* Label kata tetap tampil di semua lebar: skala tanpa jangkar kata
-     ditafsirkan berbeda-beda antar responden, dan itu merusak
-     perbandingan antar periode. Dibiarkan membungkus dua baris. */
-  .skala label .kata { font-size: 10.5px; line-height: 1.18; color: var(--redup); }
-  .skala label:hover { border-color: var(--utama); }
-  .skala input:checked + label { border-color: var(--utama);
-                                 background: #eaf4f2; }
-  .skala input:checked + label .angka,
-  .skala input:checked + label .kata { color: var(--utama); }
-  .skala input:focus-visible + label { outline: 2px solid var(--utama);
-                                       outline-offset: 2px; }
+  /* ---------------------------------------------------------------- bintang
+     Susunan DOM sengaja terbalik (5..1) dengan row-reverse, supaya bintang
+     yang dipilih beserta semua bintang di kirinya bisa diwarnai hanya dengan
+     CSS (input:checked ~ label). Tanpa JavaScript pun tetap berfungsi. */
+  .nilai { display: flex; flex-direction: column; gap: 5px; }
+  .bintang { display: flex; flex-direction: row-reverse; justify-content: flex-end;
+             gap: 2px; }
+  .bintang input { position: absolute; opacity: 0; pointer-events: none; }
+  .bintang label { cursor: pointer; padding: 5px 3px; line-height: 0;
+                   border-radius: 8px; }
+  .bintang svg { width: 44px; height: 44px; display: block;
+                 fill: #e7e7e7; stroke: #c4c4c4; stroke-width: 1.1px; }
+  .bintang input:checked ~ label svg { fill: #f0a500; stroke: #c98400; }
+  .bintang label:hover svg,
+  .bintang label:hover ~ label svg { fill: #f7c75a; stroke: #c98400; }
+  .bintang:hover input:checked ~ label svg { fill: #e7e7e7; stroke: #c4c4c4; }
+  .bintang:hover label:hover svg,
+  .bintang:hover label:hover ~ label svg { fill: #f7c75a; stroke: #c98400; }
+  .bintang input:focus-visible + label { outline: 2px solid var(--utama);
+                                         outline-offset: 1px; }
+  /* Jangkar kata selalu terlihat. Skala tanpa jangkar ditafsirkan
+     berbeda-beda antar responden, dan itu merusak perbandingan antar
+     periode (metodologi bagian 5). */
+  .jangkar { display: flex; justify-content: space-between; gap: 10px;
+             font-size: 11.5px; color: var(--redup); padding: 0 4px; }
+  .terpilih { margin: 0; font-size: 13px; font-weight: 600;
+              color: var(--utama); min-height: 18px; padding: 0 4px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden;
+        clip: rect(0 0 0 0); white-space: nowrap; }
+
   textarea { width: 100%; font: inherit; padding: 11px 12px; border-radius: 10px;
              border: 1.5px solid var(--garis); min-height: 96px; resize: vertical;
              background: var(--kartu); color: var(--tinta); }
@@ -71,12 +80,19 @@
   .hening { display: none; }
   footer { color: var(--redup); font-size: 13px; text-align: center;
            margin-top: 26px; }
+  /* Dua kolom hanya bila cukup lebar. Di ponsel, kolom kanan tidak muat
+     untuk lima bintang berukuran sentuh yang nyaman, jadi menumpuk. */
+  @media (min-width: 600px) {
+    .kartu.berskala { display: grid; align-items: center; gap: 22px;
+                      grid-template-columns: minmax(0, 1.35fr) minmax(220px, 1fr); }
+    .kartu.berskala .tanya { margin: 0; }
+  }
   @media (max-width: 380px) {
     body { padding-left: 12px; padding-right: 12px; }
     .kartu { padding: 16px 13px 18px; }
-    .skala { gap: 5px; }
-    .skala label { padding: 8px 2px; }
-    .skala label .kata { font-size: 9.5px; }
+    .bintang svg { width: 36px; height: 36px; }
+    .bintang label { padding: 5px 1px; }
+    .jangkar { font-size: 10.5px; }
   }
 </style>
 </head>

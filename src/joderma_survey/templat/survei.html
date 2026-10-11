@@ -20,23 +20,38 @@
 
   {% for p in pertanyaan %}
     {% set nilai_lama = terkirim.get(p.kode) if terkirim else None %}
-    <div class="kartu{% if p.tampil_bila %} bersyarat hening{% endif %}"
+    <div class="kartu{% if p.jenis == 'skala_1_5' %} berskala{% endif %}{% if p.tampil_bila %} bersyarat hening{% endif %}"
          {% if p.tampil_bila %}data-tampil-bila="{{ p.tampil_bila }}"{% endif %}>
       <p class="tanya">
         <span class="nomor">{{ loop.index }}.</span>{{ p.teks }}{% if p.wajib %} <span class="wajib" title="wajib diisi">*</span>{% endif %}
       </p>
 
       {% if p.jenis == 'skala_1_5' %}
-        <div class="skala">
-          {% for n in range(1, 6) %}
-            <input type="radio" id="{{ p.kode }}-{{ n }}" name="{{ p.kode }}"
-                   value="{{ n }}" class="nilai-skala"
-                   {% if nilai_lama == n|string %}checked{% endif %}>
-            <label for="{{ p.kode }}-{{ n }}">
-              <span class="angka">{{ n }}</span>
-              <span class="kata">{{ label_skala[n] }}</span>
-            </label>
-          {% endfor %}
+        <div class="nilai">
+          {# Urutan 5..1 disengaja; row-reverse membalik tampilannya jadi 1..5,
+             sehingga bintang terpilih beserta yang di kirinya bisa diwarnai
+             tanpa JavaScript. #}
+          <div class="bintang" role="radiogroup" aria-label="{{ p.teks }}">
+            {% for n in [5, 4, 3, 2, 1] %}
+              <input type="radio" id="{{ p.kode }}-{{ n }}" name="{{ p.kode }}"
+                     value="{{ n }}" class="nilai-skala"
+                     data-kata="{{ label_skala[n] }}"
+                     {% if nilai_lama == n|string %}checked{% endif %}>
+              <label for="{{ p.kode }}-{{ n }}" title="{{ n }} - {{ label_skala[n] }}">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M12 2.6l2.9 5.9 6.5.95-4.7 4.58 1.11 6.47L12 17.42 6.19 20.5l1.11-6.47-4.7-4.58 6.5-.95z"/>
+                </svg>
+                <span class="sr">{{ n }} dari 5, {{ label_skala[n] }}</span>
+              </label>
+            {% endfor %}
+          </div>
+          <div class="jangkar">
+            <span>1 {{ label_skala[1] }}</span>
+            <span>5 {{ label_skala[5] }}</span>
+          </div>
+          <p class="terpilih" data-terpilih-untuk="{{ p.kode }}" aria-live="polite">
+            {%- if nilai_lama %}{{ nilai_lama }} dari 5 &middot; {{ label_skala[nilai_lama|int] }}{% endif -%}
+          </p>
         </div>
 
       {% elif p.jenis == 'ya_tidak' %}
@@ -88,6 +103,20 @@
     if (ev.target.classList.contains('nilai-skala')) perbarui();
   });
   perbarui();
+})();
+
+// Menampilkan kata untuk bintang yang dipilih. Jangkar "1 Sangat buruk" dan
+// "5 Sangat baik" sudah tampil tanpa JavaScript, jadi makna skalanya tetap
+// jelas walau skrip ini tidak jalan.
+(function () {
+  document.addEventListener('change', function (ev) {
+    var el = ev.target;
+    if (!el.classList || !el.classList.contains('nilai-skala')) return;
+    var keluar = document.querySelector(
+      '[data-terpilih-untuk="' + el.name + '"]');
+    if (keluar) keluar.textContent = el.value + ' dari 5 \u00b7 ' +
+      (el.getAttribute('data-kata') || '');
+  });
 })();
 </script>
 <noscript>
