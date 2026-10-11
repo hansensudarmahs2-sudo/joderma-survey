@@ -1,0 +1,71 @@
+# ============================================================
+# DATA PASIEN ASLI — JANGAN PERNAH DI-COMMIT
+# ============================================================
+# Laporan Omnicare asli (nama, nomor RM, dokter)
+contoh-xls-omnicare/
+unggahan/
+data/
+
+# Contoh samar belum ada. Folder ini ditutup dulu supaya
+# salinan data asli tidak ikut masuk. Dibuka nanti dengan
+# pengecualian sempit (!samples/*.xls) setelah generator di
+# tools/buat_contoh_samar.py jadi dan hasilnya diperiksa.
+samples/
+
+# Laporan Omnicare dalam bentuk apa pun, di mana pun
+*.xls
+*.xlsx
+*.XLS
+*.XLSX
+
+# ============================================================
+# Database
+# ============================================================
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# ============================================================
+# Ekspor analisis & laporan PDF (berisi data turunan pasien)
+# ============================================================
+ekspor/
+laporan/
+*.pdf
+
+# ============================================================
+# Python
+# ============================================================
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# ============================================================
+# Rahasia & konfigurasi lokal
+# ============================================================
+.env
+.env.*
+*.secret
+config/lokal.yaml
+
+# ============================================================
+# OS & editor
+# ============================================================
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# ============================================================
+# Dokumen internal — ditahan lokal (repo ini PUBLIC)
+# ============================================================
+# Memuat detail infrastruktur, volume pasien, dan strategi
+# operasional klinik. Tidak untuk dibuka ke publik.
+PRD*.md
+docs/
