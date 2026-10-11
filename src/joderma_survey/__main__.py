@@ -89,6 +89,52 @@ def _jalankan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _pertanyaan(args: argparse.Namespace) -> int:
+    from .pertanyaan import (
+        KonfigurasiTidakValid,
+        bandingkan,
+        muat_berkas,
+        terapkan,
+    )
+
+    try:
+        daftar = muat_berkas(args.berkas)
+    except KonfigurasiTidakValid as galat:
+        print(f"Berkas pertanyaan ditolak: {galat}", file=sys.stderr)
+        return 1
+
+    conn = basis.buka(args.basis)
+    basis.migrasi(conn)
+    try:
+        if args.terapkan:
+            rencana = terapkan(conn, daftar, ejaan=args.ejaan)
+            print(f"Diterapkan dari {args.berkas}:")
+        else:
+            rencana = bandingkan(conn, daftar, ejaan=args.ejaan)
+            print(f"Uji kering dari {args.berkas} (basis data tidak disentuh):")
+    except KonfigurasiTidakValid as galat:
+        print(f"Ditolak: {galat}", file=sys.stderr)
+        return 1
+    finally:
+        conn.close()
+
+    print(rencana.ringkas())
+    if not args.terapkan and rencana.ada_perubahan:
+        print()
+        print("Jalankan ulang dengan --terapkan untuk menyimpannya.")
+        makna = [k for k, _, m in rencana.berubah if m]
+        if makna:
+            print(
+                "Perubahan teks dianggap MENGUBAH MAKNA, sehingga laporan "
+                "memotong rangkaian datanya di titik itu."
+            )
+            print(
+                "Bila itu hanya perbaikan ejaan, tambahkan: "
+                + " ".join(f"--ejaan {k}" for k in makna)
+            )
+    return 0
+
+
 def _jalankan_survei(args: argparse.Namespace) -> int:
     from .web_survei import buat_app
 
@@ -118,6 +164,26 @@ def utama(argv: list[str] | None = None) -> int:
     p.add_argument("--nama", required=True)
     p.add_argument("--peran", required=True, choices=PERAN)
     p.set_defaults(fungsi=_pengguna)
+
+    p = anak.add_parser(
+        "pertanyaan",
+        help="terapkan isi survei dari berkas konfigurasi",
+    )
+    p.add_argument("--berkas", default=Path("config/pertanyaan.toml"), type=Path)
+    p.add_argument(
+        "--terapkan",
+        action="store_true",
+        help="simpan perubahan; tanpa ini hanya menampilkan uji kering",
+    )
+    p.add_argument(
+        "--ejaan",
+        action="append",
+        default=[],
+        metavar="KODE",
+        help="tandai perubahan teks pertanyaan ini sebagai perbaikan ejaan "
+        "saja, bukan perubahan makna (boleh diulang)",
+    )
+    p.set_defaults(fungsi=_pertanyaan)
 
     p = anak.add_parser("jalankan", help="jalankan aplikasi admin")
     p.add_argument("--alamat", default="127.0.0.1")

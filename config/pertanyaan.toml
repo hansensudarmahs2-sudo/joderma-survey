@@ -1,0 +1,90 @@
+# Pertanyaan survei JoDerma
+# =========================
+#
+# Berkas ini adalah sumber kebenaran isi survei (F10: pertanyaan bisa diganti
+# tanpa mengubah kode). Setelah disunting, terapkan dengan:
+#
+#     uv run python -m joderma_survey --basis joderma.db pertanyaan --kering
+#     uv run python -m joderma_survey --basis joderma.db pertanyaan --terapkan
+#
+# Jalankan --kering lebih dulu: ia hanya menampilkan apa yang akan berubah
+# tanpa menyentuh basis data.
+#
+# ATURAN PENTING
+# --------------
+# * `kode` adalah identitas tetap sebuah pertanyaan. JANGAN diubah -- jawaban
+#   lama dikelompokkan berdasarkan kode ini. Mengganti kode sama dengan
+#   membuang riwayat pertanyaan tersebut.
+# * Mengubah `teks` membuat revisi baru, dan secara bawaan ditandai
+#   MENGUBAH MAKNA, sehingga laporan memotong rangkaian datanya di titik itu.
+#   Untuk perbaikan ejaan yang tidak mengubah makna, tambahkan:
+#       --ejaan <kode>
+#   supaya rangkaian datanya tetap tersambung.
+# * Urutan pertanyaan mengikuti urutan di berkas ini.
+# * Menghapus pertanyaan dari berkas akan menonaktifkannya, bukan
+#   menghapus jawaban lamanya.
+#
+# jenis        : skala_1_5 | teks | ya_tidak
+# peran        : biasa | izin_kontak
+# tampil_bila  : (kosong) | ada_nilai_rendah
+
+# --------------------------------------------------------------------------
+# Set RJ -- pasien dengan kunjungan dokter
+# --------------------------------------------------------------------------
+
+[[pertanyaan]]
+set = "RJ"
+kode = "keseluruhan"
+teks = "Secara keseluruhan, bagaimana penilaian Anda terhadap kunjungan Anda di JoDerma?"
+jenis = "skala_1_5"
+wajib = true
+
+[[pertanyaan]]
+set = "RJ"
+kode = "penjelasan_dokter"
+teks = "Bagaimana penilaian Anda terhadap kejelasan penjelasan dokter mengenai kondisi dan perawatan Anda?"
+jenis = "skala_1_5"
+
+[[pertanyaan]]
+set = "RJ"
+kode = "waktu_tunggu"
+teks = "Bagaimana penilaian Anda terhadap waktu tunggu sebelum dilayani?"
+jenis = "skala_1_5"
+
+[[pertanyaan]]
+set = "RJ"
+kode = "sikap_staf"
+teks = "Bagaimana penilaian Anda terhadap sikap staf non-medis dalam melayani Anda?"
+jenis = "skala_1_5"
+
+[[pertanyaan]]
+set = "RJ"
+kode = "kenyamanan"
+teks = "Bagaimana penilaian Anda terhadap kenyamanan dan kebersihan ruang klinik?"
+jenis = "skala_1_5"
+
+[[pertanyaan]]
+set = "RJ"
+kode = "kejelasan_biaya"
+teks = "Bagaimana penilaian Anda terhadap kejelasan informasi biaya sebelum tindakan?"
+jenis = "skala_1_5"
+
+[[pertanyaan]]
+set = "RJ"
+kode = "keluhan_lanjutan"
+teks = "Boleh ceritakan apa yang kurang pada bagian itu?"
+jenis = "teks"
+tampil_bila = "ada_nilai_rendah"
+
+[[pertanyaan]]
+set = "RJ"
+kode = "perbaikan"
+teks = "Apa satu hal yang paling perlu kami perbaiki?"
+jenis = "teks"
+
+[[pertanyaan]]
+set = "RJ"
+kode = "izin_kontak"
+teks = "Boleh kami hubungi untuk menindaklanjuti masukan Anda?"
+jenis = "ya_tidak"
+peran = "izin_kontak"

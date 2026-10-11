@@ -52,6 +52,7 @@ __pycache__/
 .env
 .env.*
 *.secret
+config/lokal.toml
 config/lokal.yaml
 
 # ============================================================
