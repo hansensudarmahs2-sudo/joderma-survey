@@ -39,6 +39,8 @@ from .cabang import CABANG
 from .daftar_kirim import buat_undangan, daftar_kirim
 from .parser_omnicare import LaporanTidakValid, baca_laporan
 from .pengguna import Pengguna, cari_pengguna, masuk
+from .perapian import Periode, banding, periode_sebelumnya, rapikan
+from .tanggal import TanggalTidakDikenal, dari_iso, format_periode_id
 
 __all__ = ["buat_app"]
 
@@ -226,7 +228,44 @@ def buat_app(
     @app.route("/hasil")
     @perlu("lihat_hasil")
     def halaman_hasil() -> Any:
-        return render_template("hasil.html")
+        """Laporan periode, dirancang untuk dicetak ke PDF dari peramban."""
+        conn = sambungan()
+        hari_ini = _dt.date.today()
+        awal_bawaan = hari_ini.replace(day=1)
+        akhir_bawaan = _akhir_bulan(awal_bawaan)
+        try:
+            awal = dari_iso(request.args["awal"]) if request.args.get("awal") else awal_bawaan
+            akhir = dari_iso(request.args["akhir"]) if request.args.get("akhir") else akhir_bawaan
+        except TanggalTidakDikenal:
+            flash("Tanggal tidak dikenali, memakai bulan berjalan.", "galat")
+            awal, akhir = awal_bawaan, akhir_bawaan
+        if akhir < awal:
+            awal, akhir = akhir, awal
+
+        kode = request.args.get("cabang") or None
+        if kode is not None and kode not in CABANG:
+            kode = None
+
+        periode = Periode(awal, akhir)
+        sekarang = rapikan(conn, periode=periode, cabang_kode=kode)
+        lalu = periode_sebelumnya(periode)
+        sebelum = rapikan(conn, periode=lalu, cabang_kode=kode)
+        if sebelum.terisi == 0:
+            sebelum = None
+
+        return render_template(
+            "hasil.html",
+            r=sekarang,
+            sebelum=sebelum,
+            perbandingan=banding(sekarang, sebelum),
+            periode=periode,
+            periode_lalu=lalu,
+            sebutan=format_periode_id(awal, akhir),
+            sebutan_lalu=format_periode_id(lalu.awal, lalu.akhir),
+            cabang=CABANG,
+            dipilih=kode,
+            dicetak=hari_ini,
+        )
 
     @app.errorhandler(403)
     def tanpa_hak(_galat: Any) -> Any:
@@ -239,6 +278,12 @@ def buat_app(
                                pesan="Berkas terlalu besar untuk laporan Omnicare."), 413
 
     return app
+
+
+def _akhir_bulan(awal: _dt.date) -> _dt.date:
+    if awal.month == 12:
+        return awal.replace(day=31)
+    return awal.replace(month=awal.month + 1, day=1) - _dt.timedelta(days=1)
 
 
 def _riwayat_unggahan(conn: sqlite3.Connection) -> list[sqlite3.Row]:

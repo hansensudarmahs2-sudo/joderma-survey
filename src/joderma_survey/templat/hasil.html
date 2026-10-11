@@ -1,10 +1,293 @@
 {% extends "dasar.html" %}
-{% block judul %}Hasil survei &middot; JoDerma Survei{% endblock %}
+{% block judul %}Laporan survei &middot; {{ sebutan }}{% endblock %}
+{% macro persen(s) %}{% if s %}{{ '%.1f'|format(s.nilai * 100) }}%{% else %}&mdash;{% endif %}{% endmacro %}
+{% macro selang_persen(s) %}{% if s %}{{ '%.1f'|format(s.bawah * 100) }}&ndash;{{ '%.1f'|format(s.atas * 100) }}%{% endif %}{% endmacro %}
 {% block isi %}
-<h1>Hasil survei</h1>
-<p class="catatan">Hanya untuk owner dan direktur operasional.</p>
-<div class="kartu">
-  <p style="margin:0">Belum ada hasil. Halaman ini terisi setelah tahap 4
-  (halaman survei publik) dan tahap 5 (perapian data) selesai.</p>
+<style>
+  /* ------------------------------------------------------------- cetak
+     Laporan ini sengaja tidak memakai pustaka PDF. Cetak dari peramban
+     (Ctrl+P, simpan sebagai PDF) sudah memadai dan tidak menambah
+     dependensi apa pun di mini PC. */
+  .saring { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
+            margin-bottom: 18px; }
+  .saring label { margin-bottom: 4px; }
+  .saring input, .saring select { width: auto; }
+  .angka-besar { font-size: 26px; font-weight: 700; line-height: 1.15; }
+  .angka-ket { color: var(--redup); font-size: 12.5px; }
+  .petak { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+           gap: 14px; }
+  .skor { font-variant-numeric: tabular-nums; font-weight: 700; }
+  .selang { color: var(--redup); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .batang { display: flex; height: 9px; border-radius: 4px; overflow: hidden;
+            background: #eee; min-width: 90px; }
+  .batang i { display: block; }
+  .b1 { background: #a3261f; } .b2 { background: #d08a3a; }
+  .b3 { background: #cfc9bd; } .b4 { background: #6fae8f; } .b5 { background: #0b6b5e; }
+  .arah { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .naik { color: var(--berhasil); } .turun { color: var(--galat); }
+  .derau { color: var(--redup); font-weight: 400; }
+  .kutip { border-left: 3px solid var(--garis); padding: 2px 0 2px 12px;
+           margin: 0 0 10px; }
+  .kutip p { margin: 0; }
+  .kutip .asal { color: var(--redup); font-size: 12px; }
+  .aturan { background: #fbf8ef; border-color: #e6dcc0; }
+  .aturan ol { margin: 8px 0 0; padding-left: 20px; }
+  .aturan li { margin-bottom: 5px; }
+
+  @media print {
+    @page { size: A4; margin: 14mm 13mm; }
+    header, .saring, .cetak-sembunyi { display: none !important; }
+    body { background: #fff; font-size: 10.5pt; }
+    main { max-width: none; padding: 0; }
+    .kartu { break-inside: avoid; page-break-inside: avoid;
+             border-color: #bbb; box-shadow: none; }
+    h2 { break-after: avoid; page-break-after: avoid; }
+    tbody tr:hover { background: none; }
+    .aturan { background: #fff; }
+  }
+</style>
+
+<h1 class="cetak-sembunyi">Laporan survei</h1>
+
+<form class="saring cetak-sembunyi" method="get">
+  <div>
+    <label for="awal">Dari</label>
+    <input type="date" id="awal" name="awal" value="{{ periode.awal }}">
+  </div>
+  <div>
+    <label for="akhir">Sampai</label>
+    <input type="date" id="akhir" name="akhir" value="{{ periode.akhir }}">
+  </div>
+  <div>
+    <label for="cabang">Cabang</label>
+    <select id="cabang" name="cabang">
+      <option value="">Semua</option>
+      {% for kode, c in cabang.items() %}
+        <option value="{{ kode }}" {% if dipilih == kode %}selected{% endif %}>{{ c.nama }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="utama" type="submit">Tampilkan</button>
+  <button type="button" onclick="window.print()">Cetak / simpan PDF</button>
+</form>
+
+<div style="margin-bottom:16px">
+  <h1 style="margin-bottom:2px">Laporan Survei Pelanggan</h1>
+  <p class="catatan" style="margin:0">
+    {{ sebutan }} &middot;
+    {{ cabang[dipilih].nama if dipilih else 'Jemur Andayani dan Citraland' }}
+    &middot; dicetak {{ dicetak }}
+  </p>
 </div>
+
+{# ------------------------------------------------------------- pengiriman #}
+<h2>Jangkauan pengiriman</h2>
+<div class="kartu">
+  <div class="petak">
+    <div>
+      <div class="angka-besar">{{ r.undangan }}</div>
+      <div class="angka-ket">link dibuat</div>
+    </div>
+    <div>
+      <div class="angka-besar">{{ persen(r.tingkat_pembukaan) }}</div>
+      <div class="angka-ket">dibuka ({{ r.dibuka }})<br><span class="selang">{{ selang_persen(r.tingkat_pembukaan) }}</span></div>
+    </div>
+    <div>
+      <div class="angka-besar">{{ persen(r.tingkat_pengisian) }}</div>
+      <div class="angka-ket">terisi ({{ r.terisi }})<br><span class="selang">{{ selang_persen(r.tingkat_pengisian) }}</span></div>
+    </div>
+    <div>
+      <div class="angka-besar">{{ persen(r.terisi_dari_yang_dibuka) }}</div>
+      <div class="angka-ket">mengisi setelah membuka</div>
+    </div>
+    <div>
+      <div class="angka-besar">{{ '%.0f'|format(r.n_efektif) }}</div>
+      <div class="angka-ket">ukuran efektif sampel<br><span class="selang">dari {{ r.terisi }} jawaban</span></div>
+    </div>
+  </div>
+  <p class="mini" style="margin:14px 0 0">
+    Angka <strong>dibuka</strong> memisahkan dua masalah yang berbeda: link
+    yang tidak pernah sampai ke pasien adalah urusan pengiriman, sedangkan
+    link yang dibuka tapi tidak diisi adalah urusan surveinya sendiri.
+    {% if r.dibatalkan %}{{ r.dibatalkan }} link dibatalkan CS karena kontak tidak ditemukan.{% endif %}
+  </p>
+</div>
+
+{# -------------------------------------------------------------- skor utama #}
+<h2>Skor per pertanyaan</h2>
+<div class="kartu">
+  <table>
+    <thead>
+      <tr>
+        <th>Pertanyaan</th>
+        <th class="nowrap">Rata-rata</th>
+        <th class="nowrap">Baik/Sangat baik</th>
+        <th>Sebaran 1&ndash;5</th>
+        <th class="nowrap">Jawaban</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in r.pertanyaan %}
+      {% if p.jenis == 'skala_1_5' and p.ringkasan and p.ringkasan.rata_rata %}
+      <tr>
+        <td>{{ p.teks }}</td>
+        <td class="nowrap">
+          <span class="skor">{{ '%.2f'|format(p.ringkasan.rata_rata.nilai) }}</span><br>
+          <span class="selang">&plusmn;{{ '%.2f'|format(p.ringkasan.rata_rata.lebar_setengah) }}</span>
+        </td>
+        <td class="nowrap">
+          <span class="skor">{{ persen(p.ringkasan.top2) }}</span><br>
+          <span class="selang">{{ selang_persen(p.ringkasan.top2) }}</span>
+        </td>
+        <td>
+          {% set total = p.ringkasan.sebaran.values()|sum %}
+          <div class="batang">
+            {% for n in [1,2,3,4,5] %}
+              {% set bagian = p.ringkasan.sebaran[n] %}
+              {% if bagian %}<i class="b{{ n }}" style="width:{{ (bagian / total * 100)|round(2) }}%"></i>{% endif %}
+            {% endfor %}
+          </div>
+          <span class="selang">
+            {%- for n in [1,2,3,4,5] %}{{ p.ringkasan.sebaran[n] }}{% if not loop.last %}/{% endif %}{% endfor -%}
+          </span>
+        </td>
+        <td class="mini nowrap">{{ p.dijawab }}{% if p.dikosongkan %} <span class="selang">({{ p.dikosongkan }} kosong)</span>{% endif %}</td>
+      </tr>
+      {% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# ------------------------------------------------------- antar periode #}
+<h2>Perubahan dari periode sebelumnya</h2>
+<div class="kartu">
+  {% if sebelum %}
+  <p class="mini" style="margin:0 0 10px">
+    Dibandingkan dengan {{ sebutan_lalu }} ({{ sebelum.terisi }} jawaban).
+    Perubahan hanya disebut <strong>nyata</strong> bila selang kepercayaan
+    kedua periode tidak bertumpang tindih.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Pertanyaan</th><th class="nowrap">Sebelum</th><th class="nowrap">Sekarang</th>
+          <th class="nowrap">Selisih</th><th>Penilaian</th></tr>
+    </thead>
+    <tbody>
+    {% for b in perbandingan %}
+      <tr>
+        <td>{{ b.teks }}</td>
+        <td class="nowrap skor">{% if b.sebelum %}{{ '%.2f'|format(b.sebelum.nilai) }}{% else %}&mdash;{% endif %}</td>
+        <td class="nowrap skor">{% if b.sekarang %}{{ '%.2f'|format(b.sekarang.nilai) }}{% else %}&mdash;{% endif %}</td>
+        <td class="nowrap arah {{ b.arah }}">
+          {%- if b.selisih is not none %}{{ '%+.2f'|format(b.selisih) }}{% else %}&mdash;{% endif -%}
+        </td>
+        <td class="mini">
+          {% if b.arah == 'naik' %}<span class="naik">membaik nyata</span>
+          {% elif b.arah == 'turun' %}<span class="turun">menurun nyata</span>
+          {% elif b.arah == 'derau' %}<span class="derau">dalam rentang derau</span>
+          {% else %}<span class="derau">belum ada pembanding</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="margin:0">Belum ada data periode sebelumnya ({{ sebutan_lalu }})
+  untuk dibandingkan. Perbandingan antar periode baru bisa dibaca setelah
+  dua periode terkumpul.</p>
+  {% endif %}
+</div>
+
+{# ----------------------------------------------- keterwakilan / nonresponse #}
+<h2>Keterwakilan</h2>
+<div class="kartu">
+  <p class="mini" style="margin:0 0 10px">
+    Kesalahan terbesar survei sukarela bukan ketepatan angkanya, melainkan
+    <strong>siapa yang memilih mengisi</strong>. Tingkat pengisian yang
+    timpang antar kelompok berarti hasilnya condong ke kelompok yang lebih
+    responsif. Bobot dipakai untuk mengembalikan komposisinya.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Cabang</th><th>Layanan</th><th class="nowrap">Dikirimi</th>
+          <th class="nowrap">Mengisi</th><th class="nowrap">Tingkat pengisian</th>
+          <th class="nowrap">Bobot</th></tr>
+    </thead>
+    <tbody>
+    {% for s in r.sel %}
+      <tr>
+        <td>{{ cabang[s.cabang_kode].nama if s.cabang_kode in cabang else s.cabang_kode }}</td>
+        <td class="mini">{{ s.layanan or '&mdash;' }}</td>
+        <td class="mini">{{ s.populasi }}</td>
+        <td class="mini">{{ s.responden }}</td>
+        <td class="mini">{{ '%.1f'|format(s.tingkat_pengisian * 100) }}%</td>
+        <td class="mini">{{ '%.2f'|format(s.bobot) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <p class="mini" style="margin:12px 0 0">
+    Pembobotan hanya memperbaiki keberatsebelahan pada cabang dan jenis
+    layanan. Bila pasien yang tidak puas lebih enggan mengisi <em>di dalam
+    tiap kelompok</em>, bobot tidak memperbaiki apa pun.
+    {% if r.izin_kontak %}<br>{{ r.izin_kontak }} responden bersedia dihubungi untuk tindak lanjut.{% endif %}
+  </p>
+</div>
+
+{# ------------------------------------------------------------- teks bebas #}
+{% if r.teks_bebas %}
+<h2>Masukan tertulis</h2>
+<div class="kartu">
+  {% for t in r.teks_bebas[:40] %}
+    <div class="kutip">
+      <p>{{ t.teks }}</p>
+      <span class="asal">
+        {{ cabang[t.cabang].nama if t.cabang in cabang else t.cabang }}
+        {%- if t.kode == 'keluhan_lanjutan' %} &middot; tindak lanjut nilai rendah{% endif %}
+        {%- if t.disensor %} &middot; sebagian disensor{% endif %}
+      </span>
+    </div>
+  {% endfor %}
+  {% if r.teks_bebas|length > 40 %}
+    <p class="mini" style="margin:10px 0 0">
+      Menampilkan 40 dari {{ r.teks_bebas|length }} masukan. Selebihnya ada di
+      berkas ekspor.
+    </p>
+  {% endif %}
+</div>
+{% endif %}
+
+{# ---------------------------------------------------------- aturan baca #}
+<h2>Cara membaca laporan ini</h2>
+<div class="kartu aturan">
+  <ol>
+    <li><strong>Bacalah perubahannya, bukan tingkat skornya.</strong> Survei
+      dikirim klinik sendiri dan pasien tahu dirinya dikenali saat mengisi,
+      sehingga kritik cenderung tertahan dan skor condong tinggi. Tampilan
+      bintang menambah kecondongan itu.</li>
+    <li><strong>Abaikan perubahan yang lebih kecil daripada angka &plusmn;
+      di kolom rata-rata.</strong> Itu derau, bukan perbaikan atau
+      penurunan.</li>
+    <li><strong>Jangan bandingkan dengan tolok ukur bintang dari industri
+      lain.</strong> Tetapkan garis dasar sendiri dari dua sampai tiga
+      periode pertama.</li>
+    <li><strong>Jangan membuat skor per dokter dari satu periode.</strong>
+      Satu dokter biasanya hanya punya belasan jawaban per bulan. Skor per
+      dokter baru sah secara tahunan dengan minimal 100 jawaban.</li>
+  </ol>
+</div>
+
+{% if r.peringatan %}
+<h2>Peringatan</h2>
+<div class="kartu">
+  <ul class="rinci" style="margin:0">
+    {% for p in r.peringatan %}<li>{{ p }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<p class="mini" style="text-align:center; margin-top:22px">
+  JoDerma &middot; {{ sebutan }} &middot; hanya untuk owner dan direktur operasional
+</p>
 {% endblock %}

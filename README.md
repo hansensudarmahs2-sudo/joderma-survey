@@ -7,7 +7,7 @@ JoDerma adalah klinik kulit dengan dua cabang.
 
 ## Status
 
-**Tahap 5 selesai.** Alur penuh sudah jalan, dari unggah laporan sampai berkas analisis siap diserahkan ke Claude agent (793 tes).
+**Seluruh tahap selesai.** Alur penuh berjalan dari unggah laporan Omnicare sampai laporan siap cetak (812 tes). F1 sampai F14 terpenuhi.
 
 | Tahap | Isi | Status |
 |---|---|---|
@@ -17,7 +17,7 @@ JoDerma adalah klinik kulit dengan dua cabang.
 | 3 | Pembuatan link + daftar kirim CS | **selesai** |
 | 4 | Halaman survei publik | **selesai** |
 | 5 | Perapian data + ekspor anonim | **selesai** |
-| 6 | Laporan PDF | belum |
+| 6 | Laporan PDF | **selesai** |
 
 ## Menjalankan
 
@@ -40,7 +40,11 @@ uv run python -m joderma_survey --basis joderma.db pertanyaan            # uji k
 uv run python -m joderma_survey --basis joderma.db pertanyaan --terapkan
 ```
 
-Menyiapkan data untuk dianalisis:
+Laporan periode ada di halaman **Hasil survei** pada aplikasi admin, dan
+dicetak ke PDF langsung dari peramban (Ctrl+P). Halamannya memakai CSS cetak
+A4, jadi tidak ada pustaka PDF yang perlu dipasang di mini PC.
+
+Menyiapkan data untuk dianalisis Claude agent:
 
 ```
 uv run python -m joderma_survey --basis joderma.db ekspor \

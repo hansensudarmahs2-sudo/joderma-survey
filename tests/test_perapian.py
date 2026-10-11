@@ -394,3 +394,93 @@ def test_jawaban_csv_berisi_bobot(conn: sqlite3.Connection, tmp_path: Path) -> N
         "keseluruhan", "penjelasan_dokter", "waktu_tunggu",
         "sikap_staf", "kenyamanan", "kejelasan_biaya",
     }
+
+
+# --------------------------------------------------------------------------
+# Perbandingan antar periode
+#
+# Bagian yang paling menentukan: tingkat skornya sendiri tidak banyak
+# berguna, yang bisa ditindaklanjuti adalah perubahannya.
+# --------------------------------------------------------------------------
+
+
+def test_periode_sebelumnya_sepanjang_yang_sekarang() -> None:
+    from joderma_survey.perapian import periode_sebelumnya
+
+    okt = Periode(dt.date(2026, 10, 1), dt.date(2026, 10, 31))
+    lalu = periode_sebelumnya(okt)
+    assert lalu.akhir == dt.date(2026, 9, 30)
+    assert (lalu.akhir - lalu.awal).days == (okt.akhir - okt.awal).days
+
+
+def test_periode_sebelumnya_mingguan() -> None:
+    from joderma_survey.perapian import periode_sebelumnya
+
+    lalu = periode_sebelumnya(Periode(dt.date(2026, 10, 8), dt.date(2026, 10, 14)))
+    assert lalu == Periode(dt.date(2026, 10, 1), dt.date(2026, 10, 7))
+
+
+def _dua_periode(
+    conn: sqlite3.Connection, nilai_lama: int, nilai_baru: int, jumlah: int = 20
+) -> tuple[object, object]:
+    from joderma_survey.perapian import rapikan
+
+    token = siapkan(conn, jumlah * 2)
+    for t in token[:jumlah]:
+        isi(conn, t, keseluruhan=str(nilai_lama))
+    conn.execute("UPDATE sesi_jawaban SET diisi_pada = '2026-09-15'")
+    for t in token[jumlah:]:
+        isi(conn, t, keseluruhan=str(nilai_baru))
+    lalu = rapikan(conn, periode=Periode(dt.date(2026, 9, 1), dt.date(2026, 9, 30)))
+    kini = rapikan(conn, periode=PERIODE)
+    return kini, lalu
+
+
+def test_perubahan_besar_disebut_nyata(conn: sqlite3.Connection) -> None:
+    from joderma_survey.perapian import banding
+
+    kini, lalu = _dua_periode(conn, 2, 5)
+    (b,) = [x for x in banding(kini, lalu) if x.kode == "keseluruhan"]
+    assert b.nyata
+    assert b.arah == "naik"
+    assert b.selisih == pytest.approx(3.0)
+
+
+def test_perubahan_kecil_disebut_derau(conn: sqlite3.Connection) -> None:
+    """Inilah yang mencegah rapat membahas kenaikan 0,05 poin."""
+    from joderma_survey.perapian import banding
+
+    kini, lalu = _dua_periode(conn, 4, 4)
+    (b,) = [x for x in banding(kini, lalu) if x.kode == "keseluruhan"]
+    assert not b.nyata
+    assert b.arah == "derau"
+
+
+def test_penurunan_terdeteksi(conn: sqlite3.Connection) -> None:
+    from joderma_survey.perapian import banding
+
+    kini, lalu = _dua_periode(conn, 5, 2)
+    (b,) = [x for x in banding(kini, lalu) if x.kode == "keseluruhan"]
+    assert b.arah == "turun"
+    assert b.selisih is not None and b.selisih < 0
+
+
+def test_tanpa_pembanding(conn: sqlite3.Connection) -> None:
+    from joderma_survey.perapian import banding, rapikan
+
+    token = siapkan(conn, 6)
+    isi(conn, token[0])
+    kini = rapikan(conn, periode=PERIODE)
+    (b,) = [x for x in banding(kini, None) if x.kode == "keseluruhan"]
+    assert b.arah == "baru"
+    assert b.selisih is None
+    assert not b.nyata
+
+
+def test_banding_hanya_pertanyaan_skala(conn: sqlite3.Connection) -> None:
+    from joderma_survey.perapian import banding
+
+    kini, lalu = _dua_periode(conn, 4, 5)
+    kode = {b.kode for b in banding(kini, lalu)}
+    assert "perbaikan" not in kode and "izin_kontak" not in kode
+    assert len(kode) == 6

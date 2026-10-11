@@ -387,3 +387,151 @@ def tempfile_gettempdir() -> str:
     import tempfile
 
     return tempfile.gettempdir()
+
+
+# --------------------------------------------------------------------------
+# Halaman laporan (F13) -- dicetak ke PDF dari peramban
+# --------------------------------------------------------------------------
+
+
+def siapkan_jawaban(
+    path_basis: Path, jumlah: int = 12, diisi_pada: str = "2026-10-15",
+    nilai: str = "5",
+) -> None:
+    """Isi beberapa survei agar laporan punya data."""
+    from joderma_survey.survei import StatusLink, periksa_token, simpan_jawaban
+
+    conn = db.buka(path_basis)
+    baris = [
+        transaksi(no_id=f"J0{i:04d}", faktur=26100000.0 + i, pasien=f"Pasien {i}",
+                  tanggal="05/10/2026", waktu="05/10/2026 10:00:00")
+        for i in range(1, jumlah + 1)
+    ]
+    lap = laporan(*baris,
+                  judul="TRANSAKSI PENJUALAN PER 01 OKTOBER 2026 S/D 31 OKTOBER 2026")
+    uid = db.simpan_laporan(conn, lap, diunggah_pada=dt.date(2026, 10, 11)).unggahan_id
+    buat_undangan(conn, lap, uid, hari_ini=dt.date(2026, 10, 11))
+    token = [b["token"] for b in conn.execute(
+        "SELECT token FROM undangan WHERE diisi_pada IS NULL")]
+    for t in token:
+        status, undangan = periksa_token(conn, t, dt.date(2026, 10, 11))
+        if status is not StatusLink.SIAP or undangan is None:
+            continue
+        simpan_jawaban(conn, undangan, {
+            "keseluruhan": nilai, "penjelasan_dokter": nilai,
+            "waktu_tunggu": nilai, "sikap_staf": nilai, "kenyamanan": nilai,
+            "kejelasan_biaya": nilai, "perbaikan": "Parkir sempit.",
+            "izin_kontak": "tidak",
+        }, hari_ini=dt.date.fromisoformat(diisi_pada))
+    conn.close()
+
+
+def test_laporan_butuh_hak_lihat_hasil(klien: FlaskClient) -> None:
+    masuk_sebagai(klien, "cs1")
+    assert klien.get("/hasil").status_code == 403
+
+
+def test_laporan_menampilkan_semua_bagian(
+    klien: FlaskClient, path_basis: Path
+) -> None:
+    siapkan_jawaban(path_basis)
+    masuk_sebagai(klien, "dirops")
+    isi = klien.get("/hasil?awal=2026-10-01&akhir=2026-10-31").get_data(as_text=True)
+    for bagian in ["Jangkauan pengiriman", "Skor per pertanyaan",
+                   "Perubahan dari periode sebelumnya", "Keterwakilan",
+                   "Cara membaca laporan ini"]:
+        assert bagian in isi, bagian
+
+
+def test_laporan_memuat_skor_dan_selang(
+    klien: FlaskClient, path_basis: Path
+) -> None:
+    siapkan_jawaban(path_basis, jumlah=12, nilai="4")
+    masuk_sebagai(klien, "dirops")
+    isi = klien.get("/hasil?awal=2026-10-01&akhir=2026-10-31").get_data(as_text=True)
+    assert "4.00" in isi
+    assert "&plusmn;" in isi or "±" in isi
+
+
+def test_laporan_memuat_aturan_baca(klien: FlaskClient, path_basis: Path) -> None:
+    """Tanpa ini, orang akan bereaksi pada pergerakan yang sebenarnya derau."""
+    siapkan_jawaban(path_basis)
+    masuk_sebagai(klien, "dirops")
+    isi = klien.get("/hasil?awal=2026-10-01&akhir=2026-10-31").get_data(as_text=True)
+    assert "Bacalah perubahannya, bukan tingkat skornya" in isi
+    assert "derau" in isi
+    assert "skor per dokter" in isi.lower()
+
+
+def test_laporan_punya_css_cetak(klien: FlaskClient, path_basis: Path) -> None:
+    siapkan_jawaban(path_basis)
+    masuk_sebagai(klien, "dirops")
+    isi = klien.get("/hasil?awal=2026-10-01&akhir=2026-10-31").get_data(as_text=True)
+    assert "@media print" in isi
+    assert "@page" in isi and "A4" in isi
+    assert "break-inside: avoid" in isi
+    assert "window.print()" in isi
+
+
+def test_laporan_tanpa_pembanding_memberi_keterangan(
+    klien: FlaskClient, path_basis: Path
+) -> None:
+    siapkan_jawaban(path_basis)
+    masuk_sebagai(klien, "dirops")
+    isi = klien.get("/hasil?awal=2026-10-01&akhir=2026-10-31").get_data(as_text=True)
+    assert "Belum ada data periode sebelumnya" in isi
+
+
+def test_laporan_periode_kosong(klien: FlaskClient) -> None:
+    masuk_sebagai(klien, "dirops")
+    jawab = klien.get("/hasil?awal=2026-01-01&akhir=2026-01-31")
+    assert jawab.status_code == 200
+    assert "Belum ada jawaban" in jawab.get_data(as_text=True)
+
+
+def test_laporan_tanggal_salah_memakai_bulan_berjalan(klien: FlaskClient) -> None:
+    masuk_sebagai(klien, "dirops")
+    jawab = klien.get("/hasil?awal=bukan-tanggal&akhir=2026-10-31",
+                      follow_redirects=True)
+    assert jawab.status_code == 200
+    assert "Tanggal tidak dikenali" in jawab.get_data(as_text=True)
+
+
+def test_laporan_disaring_per_cabang(klien: FlaskClient, path_basis: Path) -> None:
+    siapkan_jawaban(path_basis)
+    masuk_sebagai(klien, "dirops")
+    isi = klien.get(
+        "/hasil?awal=2026-10-01&akhir=2026-10-31&cabang=31281"
+    ).get_data(as_text=True)
+    assert "Citraland" in isi
+    assert "Belum ada jawaban" in isi, "tidak ada jawaban Citraland pada data uji"
+
+
+def test_laporan_menampilkan_teks_tersaring(
+    klien: FlaskClient, path_basis: Path
+) -> None:
+    siapkan_jawaban(path_basis, jumlah=3)
+    conn = db.buka(path_basis)
+    pid = conn.execute(
+        "SELECT id FROM pertanyaan WHERE kode='perbaikan' AND aktif=1"
+    ).fetchone()["id"]
+    sesi = conn.execute("SELECT id FROM sesi_jawaban LIMIT 1").fetchone()["id"]
+    conn.execute(
+        "UPDATE jawaban SET nilai_teks='Hubungi 081234567890' "
+        "WHERE sesi_id=? AND pertanyaan_id=?", (sesi, pid)
+    )
+    conn.close()
+    masuk_sebagai(klien, "dirops")
+    isi = klien.get("/hasil?awal=2026-10-01&akhir=2026-10-31").get_data(as_text=True)
+    assert "081234567890" not in isi
+    assert "[TELEPON]" in isi
+
+
+def test_laporan_hanya_untuk_owner_dan_direktur(
+    klien: FlaskClient, path_basis: Path
+) -> None:
+    siapkan_jawaban(path_basis, jumlah=3)
+    for nama in ("owner1", "dirops"):
+        masuk_sebagai(klien, nama)
+        assert klien.get("/hasil?awal=2026-10-01&akhir=2026-10-31").status_code == 200
+        klien.post("/keluar", data={"csrf": csrf(klien)})

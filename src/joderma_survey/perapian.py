@@ -41,7 +41,10 @@ MINIMAL_UNTUK_DISIMPULKAN: Final[int] = 10
 
 __all__ = [
     "MINIMAL_UNTUK_DISIMPULKAN",
+    "Perbandingan",
     "Periode",
+    "banding",
+    "periode_sebelumnya",
     "Sel",
     "RingkasanPertanyaan",
     "RingkasanPeriode",
@@ -406,5 +409,88 @@ def rapikan(
         hasil.peringatan.append(
             f"{disensor} jawaban teks disensor sebagian karena memuat nomor "
             f"telepon, nomor RM, surel, atau nama lengkap pasien."
+        )
+    return hasil
+
+
+# --------------------------------------------------------------------------
+# Perbandingan antar periode
+#
+# Inilah bagian yang bermakna. Tingkat skornya sendiri tidak banyak berguna
+# karena tertekan courtesy bias dan jangkar bintang (metodologi bagian D dan
+# bagian Skala); yang bisa ditindaklanjuti adalah arah dan besar
+# perubahannya.
+# --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Perbandingan:
+    kode: str
+    teks: str
+    sekarang: Selang | None
+    sebelum: Selang | None
+
+    @property
+    def selisih(self) -> float | None:
+        if self.sekarang is None or self.sebelum is None:
+            return None
+        return self.sekarang.nilai - self.sebelum.nilai
+
+    @property
+    def nyata(self) -> bool:
+        """Apakah perubahannya lebih besar daripada derau.
+
+        Memakai aturan tumpang tindih selang: kalau kedua selang bersinggungan,
+        perubahannya belum tentu nyata. Ini uji yang berhati-hati -- selang
+        yang tidak bersinggungan adalah bukti lebih kuat daripada sekadar
+        berbeda nyata secara uji baku.
+        """
+        if self.sekarang is None or self.sebelum is None:
+            return False
+        return not self.sekarang.tumpang_tindih(self.sebelum)
+
+    @property
+    def arah(self) -> str:
+        """``naik``, ``turun``, atau ``derau``."""
+        selisih = self.selisih
+        if selisih is None:
+            return "baru"
+        if not self.nyata:
+            return "derau"
+        return "naik" if selisih > 0 else "turun"
+
+
+def periode_sebelumnya(p: Periode) -> Periode:
+    """Periode sepanjang itu juga, tepat sebelum ``p``.
+
+    >>> periode_sebelumnya(Periode(_dt.date(2026, 10, 1), _dt.date(2026, 10, 31)))
+    Periode(awal=datetime.date(2026, 8, 31), akhir=datetime.date(2026, 9, 30))
+    """
+    panjang = (p.akhir - p.awal).days
+    akhir = p.awal - _dt.timedelta(days=1)
+    return Periode(akhir - _dt.timedelta(days=panjang), akhir)
+
+
+def banding(
+    sekarang: RingkasanPeriode, sebelum: RingkasanPeriode | None
+) -> list[Perbandingan]:
+    """Bandingkan skor tiap pertanyaan dengan periode sebelumnya."""
+    lama: dict[str, Selang | None] = {}
+    if sebelum is not None:
+        lama = {
+            p.kode: (p.ringkasan.rata_rata if p.ringkasan else None)
+            for p in sebelum.pertanyaan
+        }
+    hasil: list[Perbandingan] = []
+    for p in sekarang.pertanyaan:
+        if p.jenis != "skala_1_5":
+            continue
+        hasil.append(
+            Perbandingan(
+                kode=p.kode,
+                teks=p.teks,
+                sekarang=p.ringkasan.rata_rata if p.ringkasan else None,
+                sebelum=lama.get(p.kode),
+            )
         )
     return hasil
