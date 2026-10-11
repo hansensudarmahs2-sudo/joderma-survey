@@ -7,17 +7,23 @@ JoDerma adalah klinik kulit dengan dua cabang.
 
 ## Status
 
-**Tahap perencanaan.** Belum ada kode aplikasi.
+**Tahap 0 selesai.** Kerangka proyek dan modul tanggal sudah ada beserta tesnya.
 
 | Tahap | Isi | Status |
 |---|---|---|
-| 0 | Kerangka proyek, modul tanggal + tes | belum |
+| 0 | Kerangka proyek, modul tanggal + tes | **selesai** |
 | 1 | Parser laporan + pembersihan data + tes | belum |
 | 2 | Basis data + aturan jeda kirim + tes | belum |
 | 3 | Pembuatan link + daftar kirim CS | belum |
 | 4 | Halaman survei publik + survey editor | menunggu kerangka survei |
 | 5 | Perapian data + ekspor anonim | belum |
 | 6 | Laporan PDF | belum |
+
+## Menjalankan tes
+
+```
+uv run pytest
+```
 
 ## Aturan kelayakan kirim
 
