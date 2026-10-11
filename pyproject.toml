@@ -21,5 +21,6 @@ build-backend = "hatchling.build"
 packages = ["src/joderma_survey"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-q"
+# src ikut diperiksa supaya contoh di docstring (doctest) selalu benar.
+testpaths = ["tests", "src"]
+addopts = "-q --doctest-modules"
