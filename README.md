@@ -7,7 +7,11 @@ JoDerma adalah klinik kulit dengan dua cabang.
 
 ## Status
 
-**Seluruh tahap selesai.** Alur penuh berjalan dari unggah laporan Omnicare sampai laporan siap cetak (812 tes). F1 sampai F14 terpenuhi.
+**Seluruh tahap selesai.** Alur penuh berjalan dari unggah laporan Omnicare
+sampai laporan siap cetak (812 tes). Kebutuhan wajib PRD terpenuhi kecuali
+F6, yang sengaja dicabut: karena pengiriman WhatsApp dilakukan manual dan
+tidak bisa dipastikan sistem, aplikasi hanya mencatat link yang dibuat,
+bukan yang terkirim.
 
 | Tahap | Isi | Status |
 |---|---|---|
