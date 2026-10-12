@@ -98,9 +98,12 @@ langkah "python             $PYVER"
 [[ -f "$PROYEK/pyproject.toml" ]] || gagal "$PROYEK bukan folder proyek joderma-survey"
 langkah "proyek             $PROYEK"
 
-if [[ "$HOSTNAME" == *"$USER"* ]] || [[ "$(hostname)" == "hansen-sudarma" ]]; then
-  kuning "  PERHATIAN: mesin ini tampak laptop pengembangan, bukan mini PC."
-  kuning "  Layanan systemd akan ikut mati setiap mesin dimatikan."
+# Deteksi laptop lewat keberadaan baterai. Cara sebelumnya -- membandingkan
+# hostname dengan nama pengguna -- selalu kena di mini PC juga, karena
+# keduanya bernama sama. Peringatan yang selalu muncul akan diabaikan orang.
+if compgen -G "/sys/class/power_supply/BAT*" >/dev/null; then
+  kuning "  PERHATIAN: mesin ini punya baterai, jadi tampaknya laptop."
+  kuning "  Layanan systemd akan ikut mati setiap mesin ditutup atau dimatikan."
   if (( ! KERING )); then
     tanya "Tetap lanjutkan?" || { echo "  Dibatalkan."; exit 0; }
   fi
