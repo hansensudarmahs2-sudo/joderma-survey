@@ -10,6 +10,9 @@ dependencies = [
     "xlrd>=2.0.1",
     # Kerangka web paling sederhana yang memadai; tanpa kerangka JavaScript.
     "flask>=3.0",
+    # Server WSGI untuk pemakaian sungguhan. Dipilih karena murni Python,
+    # tanpa pustaka sistem apa pun yang perlu dipasang di mini PC.
+    "waitress>=3.0",
 ]
 
 [dependency-groups]

@@ -126,7 +126,8 @@ lokal dan tidak ikut di repo ini.
 
 ## Teknologi
 
-Python + SQLite. Tanpa kerangka kerja JavaScript.
+Python + SQLite + Flask, disajikan waitress. Tanpa kerangka kerja JavaScript
+dan tanpa pustaka sistem yang perlu dipasang.
 
 Pembacaan `.xls` memakai `xlrd` langsung dengan
 `ignore_workbook_corruption=True` — laporan sumber punya struktur OLE2 cacat

@@ -75,6 +75,7 @@ tidak dibahas ulang. Tidak memuat data pasien.
 | 2.46 | **Pemindahan cadangan ke desktop rumah memakai Syncthing**, di luar kode sistem ini | Kedua mesin di belakang NAT. Syncthing menghubungkan langsung tanpa membuka porta dan tanpa kredensial apa pun yang perlu disimpan di dalam kode |
 | 2.47 | **`docs/` masuk repo publik kecuali `gaps.md`; nama dokter diganti kode** | `gaps.md` adalah daftar kelemahan yang masih terbuka dan mutakhir. Volume pasien per dokter adalah data bisnis per individu yang tidak pernah disetujui para dokter untuk dipublikasikan |
 | 2.48 | **Set pertanyaan OTC (Set B) ditunda; pasien OTC sementara tidak disurvei** | 150 pasien per bulan diparkir. Angkanya tetap dilaporkan di ringkasan tiap unggahan supaya tidak terlupa |
+| 2.49 | **Kedua aplikasi memakai waitress secara bawaan**; server Flask hanya dengan `--debug` | Murni Python, tanpa pustaka sistem di mini PC, berbeda dengan gunicorn atau uWSGI. Aman secara bawaan: unit systemd tidak perlu menyalakan apa pun, dan justru harus sengaja salah untuk mendapat server pengembangan. `channel_timeout` 60 detik dan `connection_limit` 100 lebih ketat dari bawaan, karena pembatasan laju sudah dicabut |
 
 ## 3. Aturan kelayakan kirim (final)
 
@@ -113,8 +114,8 @@ unggah file
 
 | # | Pertanyaan | Menghambat |
 |---|---|---|
-| 4.1 | Server WSGI menggantikan `app.run()` Flask (gap G17) | Sebelum peluncuran |
-| 4.2 | Pemasangan di mini PC mengikuti docs/operasional.md | Sebelum peluncuran |
+| 4.1 | Pemasangan di mini PC mengikuti docs/operasional.md | Sebelum peluncuran |
+| 4.2 | Set pertanyaan OTC (Set B) | Ditunda (keputusan 2.48) |
 
 Yang sudah diputuskan dan tinggal dikerjakan saat pemasangan: kunci rahasia
 tetap (2.x, gap G13), cadangan berkala (2.44-2.46), unggah mingguan (4.2),

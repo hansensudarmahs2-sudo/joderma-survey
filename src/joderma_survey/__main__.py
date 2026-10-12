@@ -17,6 +17,7 @@ from pathlib import Path
 
 from . import db as basis
 from .cabang import CABANG
+from .sajikan import sajikan
 from .pengguna import (
     PANJANG_SANDI_MINIMUM,
     PERAN,
@@ -83,10 +84,8 @@ def _jalankan(args: argparse.Namespace) -> int:
     conn = basis.buka(args.basis)
     basis.migrasi(conn)
     conn.close()
-    app = buat_app(args.basis)
-    # Hanya untuk pengembangan. Di mini PC dijalankan lewat server WSGI di
-    # belakang Cloudflare Tunnel.
-    app.run(host=args.alamat, port=args.porta, debug=args.debug)
+    sajikan(buat_app(args.basis), args.alamat, args.porta,
+            debug=args.debug, nama="admin")
     return 0
 
 
@@ -204,8 +203,8 @@ def _jalankan_survei(args: argparse.Namespace) -> int:
     conn.close()
     # Aplikasi terpisah dari admin, dan di mini PC dijalankan di porta sendiri
     # yang dipetakan ke subdomain survei lewat Cloudflare Tunnel.
-    app = buat_app(args.basis)
-    app.run(host=args.alamat, port=args.porta, debug=args.debug)
+    sajikan(buat_app(args.basis), args.alamat, args.porta,
+            debug=args.debug, nama="survei")
     return 0
 
 
@@ -279,7 +278,10 @@ def utama(argv: list[str] | None = None) -> int:
     p = anak.add_parser("jalankan", help="jalankan aplikasi admin")
     p.add_argument("--alamat", default="127.0.0.1")
     p.add_argument("--porta", default=8000, type=int)
-    p.add_argument("--debug", action="store_true")
+    p.add_argument(
+        "--debug", action="store_true",
+        help="server pengembangan Flask; tanpa ini dipakai waitress",
+    )
     p.set_defaults(fungsi=_jalankan)
 
     p = anak.add_parser(
@@ -288,7 +290,10 @@ def utama(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--alamat", default="127.0.0.1")
     p.add_argument("--porta", default=8001, type=int)
-    p.add_argument("--debug", action="store_true")
+    p.add_argument(
+        "--debug", action="store_true",
+        help="server pengembangan Flask; tanpa ini dipakai waitress",
+    )
     p.set_defaults(fungsi=_jalankan_survei)
 
     args = induk.parse_args(argv)
