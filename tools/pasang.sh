@@ -98,6 +98,47 @@ langkah "python             $PYVER"
 [[ -f "$PROYEK/pyproject.toml" ]] || gagal "$PROYEK bukan folder proyek joderma-survey"
 langkah "proyek             $PROYEK"
 
+# Porta harus diperiksa SEBELUM unit systemd ditulis. Mini PC ini juga
+# menjalankan container lain, dan layanan yang dipasang ke porta terpakai
+# akan gagal start dengan "Address already in use" -- setelah unit terlanjur
+# ditulis dan diaktifkan.
+porta_terpakai() { (echo >"/dev/tcp/127.0.0.1/$1") 2>/dev/null; }
+
+porta_bentrok=0
+for pasangan in "admin:$PORTA_ADMIN" "survei:$PORTA_SURVEI"; do
+  nama="${pasangan%%:*}"; porta="${pasangan##*:}"
+  if porta_terpakai "$porta"; then
+    merah "  porta $porta ($nama) SUDAH DIPAKAI proses lain"
+    porta_bentrok=1
+  else
+    langkah "porta $porta ($nama)   kosong"
+  fi
+done
+
+if (( porta_bentrok )); then
+  echo
+  merah "  Pemasangan dihentikan sebelum mengubah apa pun."
+  echo "  Yang memakai porta itu:"
+  ss -tlnp 2>/dev/null | grep -E ":($PORTA_ADMIN|$PORTA_SURVEI) " | sed 's/^/    /' || true
+  docker ps --format "    {{.Names}}  {{.Ports}}" 2>/dev/null | grep -E ":($PORTA_ADMIN|$PORTA_SURVEI)->" || true
+  echo
+  echo "  Porta kosong terdekat:"
+  kosong=""
+  for p in $(seq 8002 8030); do
+    porta_terpakai "$p" || kosong="$kosong $p"
+    [[ $(wc -w <<<"$kosong") -ge 6 ]] && break
+  done
+  echo "   $kosong"
+  echo
+  echo "  Jalankan ulang dengan porta lain, misalnya:"
+  set -- $kosong
+  echo "    JODERMA_PORTA_ADMIN=$1 JODERMA_PORTA_SURVEI=$2 $0"
+  echo
+  echo "  Catat porta yang Anda pilih: keduanya harus dipakai juga di"
+  echo "  ~/.cloudflared/config.yml."
+  exit 1
+fi
+
 # Deteksi laptop lewat keberadaan baterai. Cara sebelumnya -- membandingkan
 # hostname dengan nama pengguna -- selalu kena di mini PC juga, karena
 # keduanya bernama sama. Peringatan yang selalu muncul akan diabaikan orang.
@@ -268,10 +309,14 @@ else
   # Halaman survei memang 404 di akar: tanpa token tidak ada yang ditampilkan.
   periksa_http "survei /" "http://127.0.0.1:$PORTA_SURVEI/" 404
 
-  if journalctl -u joderma-survei -n 20 --no-pager 2>/dev/null | grep -q "waitress"; then
-    hijau "  survei memakai waitress"
-  else
-    kuning "  tidak menemukan baris waitress di log; periksa journalctl -u joderma-survei"
+  # Hanya bermakna bila layanannya memang hidup: pesan waitress dicetak
+  # sebelum soket diikat, jadi ia muncul di log walau start-nya gagal.
+  if systemctl is-active --quiet joderma-survei; then
+    if journalctl -u joderma-survei -n 20 --no-pager 2>/dev/null | grep -q "waitress"; then
+      hijau "  survei memakai waitress"
+    else
+      kuning "  tidak menemukan baris waitress; periksa journalctl -u joderma-survei"
+    fi
   fi
 
   fi
