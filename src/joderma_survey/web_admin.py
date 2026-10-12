@@ -35,6 +35,7 @@ from flask import (
 )
 
 from . import db as basis
+from .awalan import AwalanJalur, rapikan_awalan
 from .cabang import CABANG
 from .daftar_kirim import buat_undangan, daftar_kirim
 from .parser_omnicare import LaporanTidakValid, baca_laporan
@@ -66,7 +67,24 @@ def buat_app(
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=os.environ.get("JODERMA_KUKI_AMAN", "1") == "1",
+        # Nama kuki dibuat khas, bukan "session" bawaan Flask: aplikasi ini
+        # bisa berbagi hostname dengan sistem lain, dan dua aplikasi yang
+        # memakai nama kuki sama akan saling menimpa sesi.
+        SESSION_COOKIE_NAME="joderma_survei_sesi",
     )
+
+    # Dipasang di bawah awalan jalur bila diminta, supaya bisa berbagi
+    # hostname dengan sistem lain dan ikut memakai kebijakan Cloudflare
+    # Access yang sudah ada di sana.
+    awalan = rapikan_awalan(os.environ.get("JODERMA_AWALAN_ADMIN", ""))
+    if awalan:
+        # Kuki dibatasi ke awalan ini saja, supaya tidak ikut terkirim ke
+        # aplikasi tetangga di hostname yang sama.
+        app.config["SESSION_COOKIE_PATH"] = awalan
+        # APPLICATION_ROOT sengaja TIDAK diisi. Flask membangun URL dari
+        # SCRIPT_NAME yang sudah dipasang lapisan di bawah; mengisi keduanya
+        # membuat awalannya terpasang dua kali (/survei/survei/kirim).
+        app.wsgi_app = AwalanJalur(app.wsgi_app, awalan)
 
     # ------------------------------------------------------------------ basis
     def sambungan() -> sqlite3.Connection:

@@ -78,6 +78,9 @@ tidak dibahas ulang. Tidak memuat data pasien.
 | 2.49 | **Kedua aplikasi memakai waitress secara bawaan**; server Flask hanya dengan `--debug` | Murni Python, tanpa pustaka sistem di mini PC, berbeda dengan gunicorn atau uWSGI. Aman secara bawaan: unit systemd tidak perlu menyalakan apa pun, dan justru harus sengaja salah untuk mendapat server pengembangan. `channel_timeout` 60 detik dan `connection_limit` 100 lebih ketat dari bawaan, karena pembatasan laju sudah dicabut |
 | 2.50 | **Skrip pemasangan `tools/pasang.sh`**, aman dijalankan ulang, dengan `--kering` | Menyalin-tempel dari runbook rawan terlewat satu langkah, dan yang paling berbahaya terlewat adalah kunci rahasia tetap. Skripnya tidak pernah mengganti kunci yang sudah ada, tidak menggandakan cron, dan menanyakan sebelum menimpa unit systemd |
 | 2.51 | **Pertanyaan interaktif dijawab TIDAK bila tidak ada terminal** | Skrip pemasangan yang menggantung menunggu jawaban di cron atau pipa lebih buruk daripada yang berhenti. `JODERMA_IYAKAN=1` untuk pemasangan tanpa awak |
+| 2.52 | **Aplikasi admin dipasang di bawah `ops.joderma.id/survei`**, bukan subdomain sendiri | Cloudflare Access mendefinisikan aplikasi per hostname, jadi staf yang sudah masuk ke `ops.joderma.id` tidak diminta login lagi. Itu menjawab keluhan OTP yang disebut PRD, tanpa mengurangi perlindungan: admin survei justru ikut terlindungi Access, yang lebih kuat daripada login aplikasi sendiri |
+| 2.53 | **Awalan jalur lewat `SCRIPT_NAME`**, bukan `APPLICATION_ROOT` | Mengisi keduanya membuat awalan terpasang dua kali (`/survei/survei/kirim`): halaman tetap terbuka, tapi semua tautannya rusak. Ada tes anti-regresinya |
+| 2.54 | **Nama kuki sesi dibuat khas dan dibatasi ke awalan** | Aplikasi berbagi hostname dengan joderma-ops; kuki bernama `session` bawaan Flask berisiko saling menimpa, dan kuki tanpa batas jalur ikut terkirim ke aplikasi tetangga |
 
 ## 3. Aturan kelayakan kirim (final)
 
