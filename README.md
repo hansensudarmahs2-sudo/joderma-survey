@@ -26,9 +26,15 @@ bukan yang terkirim.
 ## Pemasangan di mini PC
 
 ```
+git clone <repo> && cd joderma-survey
+curl -LsSf https://astral.sh/uv/install.sh | sh   # bila uv belum ada
 ./tools/pasang.sh --kering     # lihat yang akan dikerjakan
 ./tools/pasang.sh              # kerjakan
 ```
+
+Beberapa dokumen sengaja tidak masuk repo ini (runbook pemasangan, daftar
+gap, PRD). Kirim dari mesin pengembangan dengan
+`./tools/kirim-berkas-lokal.sh`.
 
 Aman dijalankan ulang. Langkah yang tidak bisa diotomatiskan (Cloudflare
 Tunnel, Syncthing, pembuatan pengguna, uji pemulihan cadangan) dicetak di
@@ -77,9 +83,15 @@ keluar setiap aplikasi dijalankan ulang).
 ## Pemasangan di mini PC
 
 ```
+git clone <repo> && cd joderma-survey
+curl -LsSf https://astral.sh/uv/install.sh | sh   # bila uv belum ada
 ./tools/pasang.sh --kering     # lihat yang akan dikerjakan
 ./tools/pasang.sh              # kerjakan
 ```
+
+Beberapa dokumen sengaja tidak masuk repo ini (runbook pemasangan, daftar
+gap, PRD). Kirim dari mesin pengembangan dengan
+`./tools/kirim-berkas-lokal.sh`.
 
 Aman dijalankan ulang. Langkah yang tidak bisa diotomatiskan (Cloudflare
 Tunnel, Syncthing, pembuatan pengguna, uji pemulihan cadangan) dicetak di
