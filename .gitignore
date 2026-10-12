@@ -33,6 +33,7 @@ samples/
 # ============================================================
 ekspor/
 laporan/
+cadangan/
 *.pdf
 
 # ============================================================
@@ -66,10 +67,14 @@ config/lokal.yaml
 # ============================================================
 # Dokumen internal — ditahan lokal (repo ini PUBLIC)
 # ============================================================
-# Memuat detail infrastruktur, volume pasien, dan strategi
-# operasional klinik. Tidak untuk dibuka ke publik.
+# PRD memuat topologi infrastruktur (nama subdomain, kebijakan Cloudflare
+# Access). docs/gaps.md adalah daftar kelemahan yang masih terbuka. Keduanya
+# tetap lokal dan ikut tercadangkan ke desktop rumah, bukan ke repo publik.
 PRD*.md
-docs/
+docs/gaps.md
+# Runbook pemasangan: memuat pemetaan hostname Cloudflare Tunnel dan
+# subdomain mana yang berada di luar Cloudflare Access.
+docs/operasional.md
 
 # Konfigurasi peluncur lokal (menunjuk basis data demo di luar proyek)
 .claude/launch.json

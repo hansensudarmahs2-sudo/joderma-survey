@@ -136,6 +136,27 @@ def _pertanyaan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cadangan(args: argparse.Namespace) -> int:
+    from .cadangan import CadanganGagal, buat_cadangan
+
+    dokumen = list(args.dokumen)
+    if not args.tanpa_dokumen and not dokumen:
+        # Berkas yang tidak masuk repo publik, jadi inilah satu-satunya
+        # salinannya di luar mesin ini.
+        for bawaan in ("docs", "config", "PRD Survei Pelanggan JoDerma.md"):
+            if Path(bawaan).exists():
+                dokumen.append(bawaan)
+    try:
+        hasil = buat_cadangan(
+            args.basis, args.tujuan, dokumen=dokumen, simpan=args.simpan
+        )
+    except CadanganGagal as galat:
+        print(f"Cadangan GAGAL: {galat}", file=sys.stderr)
+        return 1
+    print(hasil.ringkas())
+    return 0
+
+
 def _ekspor(args: argparse.Namespace) -> int:
     from .ekspor import ekspor
     from .perapian import Periode
@@ -224,6 +245,22 @@ def utama(argv: list[str] | None = None) -> int:
         "saja, bukan perubahan makna (boleh diulang)",
     )
     p.set_defaults(fungsi=_pertanyaan)
+
+    p = anak.add_parser("cadangan", help="buat cadangan basis data dan dokumen")
+    p.add_argument("--tujuan", default=Path("cadangan"), type=Path)
+    p.add_argument(
+        "--simpan", default=30, type=int,
+        help="jumlah cadangan terbaru yang disisakan (bawaan 30)",
+    )
+    p.add_argument(
+        "--dokumen", action="append", default=[], metavar="JALUR",
+        help="berkas atau folder tambahan yang ikut dicadangkan (boleh diulang)",
+    )
+    p.add_argument(
+        "--tanpa-dokumen", action="store_true", dest="tanpa_dokumen",
+        help="hanya basis data, tanpa docs/ dan config/",
+    )
+    p.set_defaults(fungsi=_cadangan)
 
     p = anak.add_parser("ekspor", help="tulis berkas analisis untuk Claude agent")
     p.add_argument("--folder", default=Path("ekspor"), type=Path)
