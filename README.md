@@ -23,6 +23,17 @@ bukan yang terkirim.
 | 5 | Perapian data + ekspor anonim | **selesai** |
 | 6 | Laporan PDF | **selesai** |
 
+## Pemasangan di mini PC
+
+```
+./tools/pasang.sh --kering     # lihat yang akan dikerjakan
+./tools/pasang.sh              # kerjakan
+```
+
+Aman dijalankan ulang. Langkah yang tidak bisa diotomatiskan (Cloudflare
+Tunnel, Syncthing, pembuatan pengguna, uji pemulihan cadangan) dicetak di
+akhir.
+
 ## Menjalankan
 
 ```
@@ -62,6 +73,17 @@ siapa pun yang menganalisis.
 Peubah lingkungan: `JODERMA_URL_SURVEI` (alamat halaman survei publik) dan
 `JODERMA_KUNCI_RAHASIA` (kunci sesi; harus tetap, kalau tidak semua pengguna
 keluar setiap aplikasi dijalankan ulang).
+
+## Pemasangan di mini PC
+
+```
+./tools/pasang.sh --kering     # lihat yang akan dikerjakan
+./tools/pasang.sh              # kerjakan
+```
+
+Aman dijalankan ulang. Langkah yang tidak bisa diotomatiskan (Cloudflare
+Tunnel, Syncthing, pembuatan pengguna, uji pemulihan cadangan) dicetak di
+akhir.
 
 ## Menjalankan tes
 

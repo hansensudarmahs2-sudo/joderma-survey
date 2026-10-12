@@ -76,6 +76,8 @@ tidak dibahas ulang. Tidak memuat data pasien.
 | 2.47 | **`docs/` masuk repo publik kecuali `gaps.md`; nama dokter diganti kode** | `gaps.md` adalah daftar kelemahan yang masih terbuka dan mutakhir. Volume pasien per dokter adalah data bisnis per individu yang tidak pernah disetujui para dokter untuk dipublikasikan |
 | 2.48 | **Set pertanyaan OTC (Set B) ditunda; pasien OTC sementara tidak disurvei** | 150 pasien per bulan diparkir. Angkanya tetap dilaporkan di ringkasan tiap unggahan supaya tidak terlupa |
 | 2.49 | **Kedua aplikasi memakai waitress secara bawaan**; server Flask hanya dengan `--debug` | Murni Python, tanpa pustaka sistem di mini PC, berbeda dengan gunicorn atau uWSGI. Aman secara bawaan: unit systemd tidak perlu menyalakan apa pun, dan justru harus sengaja salah untuk mendapat server pengembangan. `channel_timeout` 60 detik dan `connection_limit` 100 lebih ketat dari bawaan, karena pembatasan laju sudah dicabut |
+| 2.50 | **Skrip pemasangan `tools/pasang.sh`**, aman dijalankan ulang, dengan `--kering` | Menyalin-tempel dari runbook rawan terlewat satu langkah, dan yang paling berbahaya terlewat adalah kunci rahasia tetap. Skripnya tidak pernah mengganti kunci yang sudah ada, tidak menggandakan cron, dan menanyakan sebelum menimpa unit systemd |
+| 2.51 | **Pertanyaan interaktif dijawab TIDAK bila tidak ada terminal** | Skrip pemasangan yang menggantung menunggu jawaban di cron atau pipa lebih buruk daripada yang berhenti. `JODERMA_IYAKAN=1` untuk pemasangan tanpa awak |
 
 ## 3. Aturan kelayakan kirim (final)
 
