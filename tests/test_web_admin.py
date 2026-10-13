@@ -222,6 +222,16 @@ def test_tidak_ada_tombol_keluar_hanya_kembali_ke_ops(klien: FlaskClient) -> Non
     assert "Kembali ke ops" in isi
 
 
+def test_tombol_kembali_ke_ops_mencolok_di_awal_kepala(klien: FlaskClient) -> None:
+    """13 Okt 2026: tombol, bukan tautan teks kecil di ujung kanan."""
+    masuk_sebagai(klien, "cs1")
+    isi = klien.get("/kirim").get_data(as_text=True)
+    kepala = isi.split("<header>", 1)[1].split("</header>", 1)[0]
+    tombol = f'<a class="tombol-ops" href="https://{HOST_OPS}/">'
+    assert tombol in kepala and kepala.index(tombol) < kepala.index("JoDerma Survei")
+    assert kepala.count(f'href="https://{HOST_OPS}/"') == 1
+
+
 def test_kepala_halaman_menampilkan_nama_dari_ops(klien: FlaskClient) -> None:
     masuk_sebagai(klien, "dirops")
     isi = klien.get("/kirim").get_data(as_text=True)

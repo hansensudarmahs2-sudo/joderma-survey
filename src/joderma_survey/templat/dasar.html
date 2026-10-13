@@ -20,6 +20,9 @@
                flex-wrap: wrap; }
   header a { color: var(--tinta); text-decoration: none; }
   header a:hover { text-decoration: underline; }
+  header a.tombol-ops { background: var(--utama); color: #fff; padding: 6px 12px;
+                        border-radius: 6px; font-weight: 600; white-space: nowrap; }
+  header a.tombol-ops:hover { opacity: .9; text-decoration: none; }
   .peran { color: var(--redup); font-size: 13px; }
   main { max-width: 1100px; margin: 0 auto; padding: 20px; }
   h1 { font-size: 21px; margin: 0 0 4px; }
@@ -63,6 +66,8 @@
 </head>
 <body>
 <header>
+  {# Login dan logout dikelola aplikasi ops (keputusan 13 Okt 2026); tombol kembali dibuat mencolok. #}
+  {% if pengguna %}<a class="tombol-ops" href="{{ url_ops }}">&larr; Kembali ke ops</a>{% endif %}
   <strong>JoDerma Survei</strong>
   {% if pengguna %}
   <nav>
@@ -70,8 +75,6 @@
     {% if pengguna.boleh('lihat_daftar_kirim') %}<a href="{{ url_for('halaman_kirim') }}">Daftar kirim</a>{% endif %}
     {% if pengguna.boleh('lihat_hasil') %}<a href="{{ url_for('halaman_hasil') }}">Hasil survei</a>{% endif %}
     <span class="peran">{{ nama_tampil }} &middot; {{ pengguna.peran }}</span>
-    {# Login dan logout dikelola aplikasi ops (keputusan 13 Okt 2026). #}
-    <a href="{{ url_ops }}">Kembali ke ops</a>
   </nav>
   {% endif %}
 </header>
