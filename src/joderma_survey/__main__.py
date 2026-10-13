@@ -6,6 +6,10 @@ Contoh::
     uv run python -m joderma_survey pengguna --basis joderma.db \\
         --nama hansen --peran direktur
     uv run python -m joderma_survey jalankan --basis joderma.db --porta 8000
+
+Catatan: sejak 13 Okt 2026 login aplikasi admin di web memakai sesi aplikasi
+ops, bukan tabel ``pengguna``. Perintah ``pengguna`` masih ada, tetapi akun
+yang dibuatnya tidak dipakai untuk login web.
 """
 
 from __future__ import annotations
@@ -27,6 +31,13 @@ from .pengguna import (
 )
 from .skema import VERSI_TERBARU
 
+#: Dicetak oleh perintah pengguna.
+CATATAN_LOGIN_OPS = (
+    "Catatan: login web aplikasi admin kini lewat sesi ops (ops.joderma.id). "
+    "Akun di tabel pengguna tidak dipakai untuk login web; hak akses "
+    "mengikuti peran di ops."
+)
+
 
 def _siapkan(args: argparse.Namespace) -> int:
     conn = basis.buka(args.basis)
@@ -34,18 +45,12 @@ def _siapkan(args: argparse.Namespace) -> int:
     if diterapkan:
         print(f"Migrasi diterapkan: {diterapkan}")
     print(f"Versi skema sekarang: {basis.versi_skema(conn)} (terbaru {VERSI_TERBARU})")
-    jumlah = conn.execute("SELECT COUNT(*) AS n FROM pengguna").fetchone()["n"]
-    if jumlah == 0:
-        print(
-            "Belum ada pengguna. Tambahkan dengan:\n"
-            f"  python -m joderma_survey pengguna --basis {args.basis}"
-            " --nama <nama> --peran direktur"
-        )
     conn.close()
     return 0
 
 
 def _pengguna(args: argparse.Namespace) -> int:
+    print(CATATAN_LOGIN_OPS, file=sys.stderr)
     conn = basis.buka(args.basis)
     basis.migrasi(conn)
     if cari_pengguna(conn, args.nama) is not None:
@@ -220,7 +225,10 @@ def utama(argv: list[str] | None = None) -> int:
     p = anak.add_parser("siapkan", help="buat atau perbarui skema basis data")
     p.set_defaults(fungsi=_siapkan)
 
-    p = anak.add_parser("pengguna", help="tambah pengguna")
+    p = anak.add_parser(
+        "pengguna",
+        help="tambah pengguna (tidak dipakai login web; login web lewat ops)",
+    )
     p.add_argument("--nama", required=True)
     p.add_argument("--peran", required=True, choices=PERAN)
     p.set_defaults(fungsi=_pengguna)

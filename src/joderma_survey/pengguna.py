@@ -1,5 +1,10 @@
 """Pengguna, sandi, dan hak akses (F14).
 
+Sejak 13 Okt 2026 login web aplikasi admin memakai sesi aplikasi ops
+(:mod:`joderma_survey.sesi_ops`). Yang tetap dipakai web dari modul ini hanya
+:data:`IZIN` (peran -> kemampuan) dan :class:`Pengguna`. Tabel ``pengguna``
+beserta fungsi sandi di bawah tinggal dipakai perintah CLI ``pengguna``.
+
 Sandi disimpan sebagai turunan scrypt dari :mod:`hashlib` — pustaka standar,
 jadi tidak perlu dependensi tambahan. Garam dibuat acak per pengguna, dan
 pembandingan memakai :func:`secrets.compare_digest` supaya lamanya proses

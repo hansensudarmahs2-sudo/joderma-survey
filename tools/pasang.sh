@@ -305,7 +305,9 @@ else
       merah "  $nama -> HTTP $kode (diharapkan $harap)"
     fi
   }
-  periksa_http "admin  /masuk" "http://127.0.0.1:$PORTA_ADMIN/masuk" 200
+  # Admin tidak punya halaman masuk lagi (login lewat sesi ops); tanpa kuki
+  # sesi ops, akarnya selalu mengalihkan ke login ops.
+  periksa_http "admin  /" "http://127.0.0.1:$PORTA_ADMIN/" 302
   # Halaman survei memang 404 di akar: tanpa token tidak ada yang ditampilkan.
   periksa_http "survei /" "http://127.0.0.1:$PORTA_SURVEI/" 404
 
@@ -321,26 +323,17 @@ else
 
   fi
 
-  JML_PENGGUNA="$(cd "$PROYEK" && "$UV" run python -c "
-from joderma_survey import db
-c = db.buka('$BASIS')
-print(c.execute('SELECT COUNT(*) n FROM pengguna').fetchone()['n'])
-c.close()" 2>/dev/null || echo 0)"
-  if [[ "$JML_PENGGUNA" == "0" ]]; then
-    kuning "  belum ada pengguna"
-  else
-    hijau "  pengguna terdaftar: $JML_PENGGUNA"
-  fi
+  langkah "login admin lewat sesi ops; tabel pengguna tidak dipakai login web"
 fi
 
 # ------------------------------------------------------------ langkah manual
 judul "Langkah yang harus Anda kerjakan sendiri"
 
 cat <<LANJUT
-  1. Buat pengguna (sekali per orang):
-       cd $PROYEK
-       $UV run python -m joderma_survey --basis $BASIS pengguna --nama <nama> --peran direktur
-       (peran: owner | direktur | cs)
+  1. Hak akses staf diatur di aplikasi ops (peran Survei: owner | direktur | cs).
+     Login admin survei memakai sesi ops; tidak perlu membuat pengguna di sini.
+     Bila ops tidak di 127.0.0.1:8731 atau hostname-nya bukan ops.joderma.id,
+     setel JODERMA_OPS_INTERNAL / JODERMA_OPS_HOST di $ENV_BERKAS.
 
   2. Cloudflare Tunnel -- tambahkan dua hostname di ~/.cloudflared/config.yml:
        ingress:

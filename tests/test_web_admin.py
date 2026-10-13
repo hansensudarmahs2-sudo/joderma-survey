@@ -13,29 +13,59 @@ from flask.testing import FlaskClient
 
 from joderma_survey import db
 from joderma_survey.daftar_kirim import buat_undangan
-from joderma_survey.pengguna import buat_pengguna
+from joderma_survey.pengguna import IZIN, KEMAMPUAN
+from joderma_survey.sesi_ops import BELUM_MASUK, BERHAK, TANPA_HAK, HasilSesi
 from joderma_survey.web_admin import buat_app
 
-SANDI = "sandi-uji-yang-panjang"
 HARI_H = dt.date(2026, 10, 11)
+HOST_OPS = "ops.contoh.id"
+LOGIN_OPS = f"https://{HOST_OPS}/akun/login/?next="
+
+
+class PemeriksaPalsu:
+    """Pengganti tanya-ke-ops: nilai kuki ``sessionid`` -> jawaban ops.
+
+    Tanpa jaringan sama sekali. Setiap panggilan dicatat, supaya tes bisa
+    memastikan ops ditanya pada setiap permintaan.
+    """
+
+    def __init__(self) -> None:
+        self.jawab: dict[str, HasilSesi] = {
+            "kuki-owner1": HasilSesi(BERHAK, "owner1", "Owner Satu", "owner"),
+            "kuki-dirops": HasilSesi(BERHAK, "dirops", "Direktur Ops", "direktur"),
+            "kuki-cs1": HasilSesi(BERHAK, "cs1", "CS Satu", "cs"),
+            "kuki-gudang": HasilSesi(TANPA_HAK, "gudang", "Staf Gudang", None),
+        }
+        self.panggilan: list[str | None] = []
+
+    def __call__(self, kuki: str | None) -> HasilSesi:
+        self.panggilan.append(kuki)
+        if kuki is None:
+            return HasilSesi(BELUM_MASUK)
+        return self.jawab.get(kuki, HasilSesi(BELUM_MASUK))
 
 
 @pytest.fixture
 def path_basis(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("JODERMA_URL_SURVEI", "https://survey.contoh.id")
     monkeypatch.setenv("JODERMA_KUKI_AMAN", "0")
+    monkeypatch.setenv("JODERMA_OPS_HOST", HOST_OPS)
+    monkeypatch.delenv("JODERMA_AWALAN_ADMIN", raising=False)
     path = tmp_path / "uji.db"
     conn = db.buka(path)
     db.migrasi(conn)
-    for nama, peran in (("owner1", "owner"), ("dirops", "direktur"), ("cs1", "cs")):
-        buat_pengguna(conn, nama, peran, SANDI)
     conn.close()
     return path
 
 
 @pytest.fixture
-def app(path_basis: Path) -> Flask:
-    aplikasi = buat_app(path_basis, kunci_rahasia="kunci-uji")
+def pemeriksa() -> PemeriksaPalsu:
+    return PemeriksaPalsu()
+
+
+@pytest.fixture
+def app(path_basis: Path, pemeriksa: PemeriksaPalsu) -> Flask:
+    aplikasi = buat_app(path_basis, kunci_rahasia="kunci-uji", pemeriksa_sesi=pemeriksa)
     aplikasi.config["TESTING"] = True
     return aplikasi
 
@@ -47,8 +77,10 @@ def klien(app: Flask) -> Iterator[FlaskClient]:
 
 
 def masuk_sebagai(klien: FlaskClient, nama: str) -> None:
-    jawab = klien.post("/masuk", data={"nama": nama, "sandi": SANDI})
-    assert jawab.status_code == 302, "login seharusnya berhasil"
+    """Tiru peramban yang sudah login ops: ia membawa kuki ``sessionid``."""
+    klien.set_cookie("sessionid", f"kuki-{nama}")
+    # GET pertama membuat token CSRF di sesi survei.
+    assert klien.get("/").status_code in (302, 403)
 
 
 def csrf(klien: FlaskClient) -> str:
@@ -67,52 +99,175 @@ def isi_undangan(path_basis: Path, nama: str = "Tatik Mindari") -> str:
 
 
 # --------------------------------------------------------------------------
-# Masuk dan keluar
+# Login lewat sesi ops (keputusan 13 Okt 2026)
 # --------------------------------------------------------------------------
 
 
-def test_tanpa_masuk_dialihkan_ke_halaman_masuk(klien: FlaskClient) -> None:
+def test_tanpa_sesi_ops_dialihkan_ke_login_ops(klien: FlaskClient) -> None:
+    for jalur in ("/", "/kirim", "/unggah", "/hasil"):
+        jawab = klien.get(jalur)
+        assert jawab.status_code == 302, jalur
+        assert jawab.headers["Location"].startswith(LOGIN_OPS), jawab.headers["Location"]
+
+
+def test_halaman_admin_tidak_disimpan_di_cache_peramban(klien: FlaskClient) -> None:
+    """Daftar kirim memuat data pasien: sesudah logout ops, tombol kembali tidak boleh menampilkannya."""
+    assert "no-store" in klien.get("/kirim").headers["Cache-Control"]  # dialihkan ke login
+    masuk_sebagai(klien, "dirops")
+    jawab = klien.get("/kirim")
+    assert jawab.status_code == 200 and "no-store" in jawab.headers["Cache-Control"]
+
+
+def test_next_memuat_jalur_yang_diminta(klien: FlaskClient) -> None:
+    jawab = klien.get("/kirim?cabang=30376")
+    assert jawab.headers["Location"] == LOGIN_OPS + "/kirim%3Fcabang%3D30376"
+
+
+def test_jawaban_tak_sah_dialihkan_tidak_pernah_lolos(
+    klien: FlaskClient, pemeriksa: PemeriksaPalsu
+) -> None:
+    """Kuki yang tidak dikenali ops (atau ops mati/timeout) = belum login."""
+    klien.set_cookie("sessionid", "kuki-asing")
     for jalur in ("/", "/kirim", "/unggah", "/hasil"):
         jawab = klien.get(jalur)
         assert jawab.status_code == 302
-        assert "/masuk" in jawab.headers["Location"]
+        assert jawab.headers["Location"].startswith(LOGIN_OPS)
 
 
-def test_masuk_berhasil(klien: FlaskClient) -> None:
+def test_hanya_kuki_sessionid_diteruskan(
+    klien: FlaskClient, pemeriksa: PemeriksaPalsu
+) -> None:
+    klien.set_cookie("csrftoken", "lain")
+    masuk_sebagai(klien, "cs1")
+    klien.get("/kirim")
+    assert pemeriksa.panggilan[-1] == "kuki-cs1"
+
+
+@pytest.mark.parametrize(
+    ("nama", "peran"), [("owner1", "owner"), ("dirops", "direktur"), ("cs1", "cs")]
+)
+def test_tiap_peran_mendapat_hak_sesuai_izin(
+    klien: FlaskClient, nama: str, peran: str
+) -> None:
+    masuk_sebagai(klien, nama)
+    rute = {"unggah_laporan": "/unggah", "lihat_daftar_kirim": "/kirim",
+            "lihat_hasil": "/hasil"}
+    for kemampuan, jalur in rute.items():
+        assert kemampuan in KEMAMPUAN
+        harap = 200 if kemampuan in IZIN[peran] else 403
+        assert klien.get(jalur).status_code == harap, (peran, jalur)
+
+
+def test_403_dari_ops_halaman_tanpa_hak(klien: FlaskClient) -> None:
+    masuk_sebagai(klien, "gudang")
+    for jalur in ("/", "/kirim", "/unggah", "/hasil"):
+        jawab = klien.get(jalur)
+        assert jawab.status_code == 403, jalur
+        isi = jawab.get_data(as_text=True)
+        assert "Halaman ini tidak terbuka untuk peran Anda." in isi
+        assert f'href="https://{HOST_OPS}/"' in isi, "tautan kembali ke ops"
+
+
+def test_ops_ditanya_setiap_permintaan(
+    klien: FlaskClient, pemeriksa: PemeriksaPalsu
+) -> None:
+    masuk_sebagai(klien, "dirops")
+    sebelum = len(pemeriksa.panggilan)
+    klien.get("/kirim")
+    klien.get("/kirim")
+    assert len(pemeriksa.panggilan) == sebelum + 2
+
+
+def test_peran_berubah_di_ops_langsung_berlaku(
+    klien: FlaskClient, pemeriksa: PemeriksaPalsu
+) -> None:
+    masuk_sebagai(klien, "dirops")
+    assert klien.get("/hasil").status_code == 200
+    pemeriksa.jawab["kuki-dirops"] = HasilSesi(BERHAK, "dirops", "Direktur Ops", "cs")
+    assert klien.get("/hasil").status_code == 403
+    pemeriksa.jawab["kuki-dirops"] = HasilSesi(TANPA_HAK, "dirops", "Direktur Ops", None)
+    assert klien.get("/kirim").status_code == 403
+
+
+def test_logout_ops_langsung_berlaku(
+    klien: FlaskClient, pemeriksa: PemeriksaPalsu
+) -> None:
     masuk_sebagai(klien, "dirops")
     assert klien.get("/kirim").status_code == 200
-
-
-def test_masuk_sandi_salah(klien: FlaskClient) -> None:
-    jawab = klien.post("/masuk", data={"nama": "dirops", "sandi": "salah-sekali-ini"})
-    assert jawab.status_code == 401
-    assert "salah" in jawab.get_data(as_text=True).lower()
-
-
-def test_pesan_gagal_tidak_membocorkan_nama_terdaftar(klien: FlaskClient) -> None:
-    ada = klien.post("/masuk", data={"nama": "dirops", "sandi": "salah-sekali-ini"})
-    tiada = klien.post("/masuk", data={"nama": "hantu", "sandi": "salah-sekali-ini"})
-    assert ada.get_data(as_text=True) == tiada.get_data(as_text=True)
-
-
-def test_keluar_menghapus_sesi(klien: FlaskClient) -> None:
-    masuk_sebagai(klien, "cs1")
-    klien.post("/keluar", data={"csrf": csrf(klien)})
-    assert klien.get("/kirim").status_code == 302
-
-
-def test_pengalihan_setelah_masuk_hanya_jalur_internal(klien: FlaskClient) -> None:
-    jawab = klien.post(
-        "/masuk?lanjut=https://jahat.example/ambil",
-        data={"nama": "cs1", "sandi": SANDI},
-    )
+    del pemeriksa.jawab["kuki-dirops"]
+    jawab = klien.get("/kirim")
     assert jawab.status_code == 302
-    assert "jahat.example" not in jawab.headers["Location"]
+    assert jawab.headers["Location"].startswith(LOGIN_OPS)
 
 
-def test_pengalihan_lanjut_internal_dihormati(klien: FlaskClient) -> None:
-    jawab = klien.post("/masuk?lanjut=/kirim", data={"nama": "cs1", "sandi": SANDI})
-    assert jawab.headers["Location"].endswith("/kirim")
+def test_sesi_survei_saja_tidak_cukup(app: Flask, pemeriksa: PemeriksaPalsu) -> None:
+    """Status login tidak disimpan di sesi survei; tanpa kuki ops = ditolak."""
+    with app.test_client() as c:
+        masuk_sebagai(c, "dirops")
+        c.delete_cookie("sessionid")
+        assert c.get("/kirim").status_code == 302
+
+
+def test_halaman_masuk_tidak_ada_lagi(klien: FlaskClient) -> None:
+    assert klien.get("/masuk").status_code == 404
+    assert klien.post("/masuk", data={"nama": "x", "sandi": "y"}).status_code in (400, 404)
+
+
+def test_tidak_ada_tombol_keluar_hanya_kembali_ke_ops(klien: FlaskClient) -> None:
+    masuk_sebagai(klien, "dirops")
+    isi = klien.get("/kirim").get_data(as_text=True)
+    assert "/masuk" not in isi
+    assert "/keluar" not in isi
+    assert f'href="https://{HOST_OPS}/"' in isi
+    assert "Kembali ke ops" in isi
+
+
+def test_kepala_halaman_menampilkan_nama_dari_ops(klien: FlaskClient) -> None:
+    masuk_sebagai(klien, "dirops")
+    isi = klien.get("/kirim").get_data(as_text=True)
+    assert "Direktur Ops" in isi and "direktur" in isi
+
+
+def test_tidak_ada_open_redirect(klien: FlaskClient) -> None:
+    """Tujuan pengalihan selalu host ops yang dikonfigurasi, dan ``next``
+    selalu jalur internal, apa pun yang ada di URL permintaan."""
+    for jalur in ("/kirim?next=https://jahat.example", "/kirim?lanjut=//jahat.example",
+                  "/hasil?awal=https://jahat.example/"):
+        lokasi = klien.get(jalur).headers.get("Location", "")
+        assert lokasi.startswith(LOGIN_OPS), (jalur, lokasi)
+        nxt = lokasi[len(LOGIN_OPS):]
+        assert nxt.startswith("/") and "://" not in nxt and "?" not in nxt, nxt
+    # PATH_INFO janggal langsung dari server WSGI pun tidak lolos.
+    for info in ("//jahat.example/kirim", "/\\jahat.example"):
+        lokasi = klien.get("/", environ_overrides={"PATH_INFO": info}).headers.get(
+            "Location", "")
+        assert "jahat.example" not in lokasi.split("?")[0], lokasi
+
+
+@pytest.mark.parametrize(
+    ("awalan", "jalur", "kueri", "harap"),
+    [
+        ("", "/kirim", "", "/kirim"),
+        ("/survei", "/kirim", "", "/survei/kirim"),
+        ("/survei", "/", "", "/survei/"),
+        ("/survei", "/kirim", "cabang=1", "/survei/kirim?cabang=1"),
+        ("", "//jahat.example/x", "", "/jahat.example/x"),
+        ("", "/\\jahat.example", "", "/jahat.example"),
+        ("", "", "", "/"),
+    ],
+)
+def test_jalur_lanjut(awalan: str, jalur: str, kueri: str, harap: str) -> None:
+    from joderma_survey.sesi_ops import jalur_lanjut
+
+    assert jalur_lanjut(awalan, jalur, kueri) == harap
+
+
+def test_url_login_ops_mengode_next() -> None:
+    from joderma_survey.sesi_ops import url_login_ops
+
+    assert url_login_ops("ops.contoh.id", "/survei/kirim?cabang=1&x=2") == (
+        "https://ops.contoh.id/akun/login/?next=/survei/kirim%3Fcabang%3D1%26x%3D2"
+    )
 
 
 # --------------------------------------------------------------------------
@@ -191,6 +346,23 @@ def test_token_csrf_berbeda_antar_sesi(app: Flask) -> None:
         masuk_sebagai(a, "cs1")
         masuk_sebagai(b, "dirops")
         assert csrf(a) != csrf(b)
+
+
+def test_token_csrf_dibuat_pada_get_pertama(klien: FlaskClient) -> None:
+    masuk_sebagai(klien, "cs1")
+    token = csrf(klien)
+    assert token
+    klien.get("/kirim")
+    assert csrf(klien) == token, "token tidak berganti tiap permintaan"
+
+
+def test_post_tanpa_csrf_ditolak_walau_berhak(
+    klien: FlaskClient, path_basis: Path
+) -> None:
+    """Sesi ops yang sah tidak menggantikan CSRF survei."""
+    token = isi_undangan(path_basis)
+    klien.set_cookie("sessionid", "kuki-cs1")
+    assert klien.post(f"/kirim/{token}/batal", data={}).status_code == 400
 
 
 # --------------------------------------------------------------------------
@@ -534,4 +706,5 @@ def test_laporan_hanya_untuk_owner_dan_direktur(
     for nama in ("owner1", "dirops"):
         masuk_sebagai(klien, nama)
         assert klien.get("/hasil?awal=2026-10-01&akhir=2026-10-31").status_code == 200
-        klien.post("/keluar", data={"csrf": csrf(klien)})
+    masuk_sebagai(klien, "cs1")
+    assert klien.get("/hasil?awal=2026-10-01&akhir=2026-10-31").status_code == 403

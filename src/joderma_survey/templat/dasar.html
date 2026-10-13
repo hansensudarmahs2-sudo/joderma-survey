@@ -69,11 +69,9 @@
     {% if pengguna.boleh('unggah_laporan') %}<a href="{{ url_for('halaman_unggah') }}">Unggah laporan</a>{% endif %}
     {% if pengguna.boleh('lihat_daftar_kirim') %}<a href="{{ url_for('halaman_kirim') }}">Daftar kirim</a>{% endif %}
     {% if pengguna.boleh('lihat_hasil') %}<a href="{{ url_for('halaman_hasil') }}">Hasil survei</a>{% endif %}
-    <span class="peran">{{ pengguna.nama }} &middot; {{ pengguna.peran }}</span>
-    <form method="post" action="{{ url_for('halaman_keluar') }}" style="margin:0">
-      <input type="hidden" name="csrf" value="{{ token_csrf }}">
-      <button>Keluar</button>
-    </form>
+    <span class="peran">{{ nama_tampil }} &middot; {{ pengguna.peran }}</span>
+    {# Login dan logout dikelola aplikasi ops (keputusan 13 Okt 2026). #}
+    <a href="{{ url_ops }}">Kembali ke ops</a>
   </nav>
   {% endif %}
 </header>

@@ -9,6 +9,13 @@ subdomain survei" tanpa bergantung pada konfigurasi yang bisa salah.
 Hak akses (F14) ditegakkan oleh :func:`perlu` yang membaca
 :data:`joderma_survey.pengguna.IZIN`. CS hanya bisa membuka daftar kirim dan
 membatalkan undangan; unggah laporan dan hasil survei tertutup untuknya.
+
+**Login memakai sesi ops** (keputusan 13 Okt 2026). Aplikasi ini tidak punya
+halaman masuk sendiri. Pada setiap permintaan ke rute yang dilindungi, ops
+ditanya siapa pemilik kuki ``sessionid`` yang dibawa peramban
+(:mod:`joderma_survey.sesi_ops`), dan peran dari ops langsung dipakai. Tidak
+ada status login yang disimpan di sesi survei; sesi survei hanya menyimpan
+token CSRF.
 """
 
 from __future__ import annotations
@@ -39,8 +46,20 @@ from .awalan import AwalanJalur, rapikan_awalan
 from .cabang import CABANG
 from .daftar_kirim import buat_undangan, daftar_kirim
 from .parser_omnicare import LaporanTidakValid, baca_laporan
-from .pengguna import Pengguna, cari_pengguna, masuk
+from .pengguna import Pengguna
 from .perapian import Periode, banding, periode_sebelumnya, rapikan
+from .sesi_ops import (
+    BERHAK,
+    NAMA_KUKI_OPS,
+    OPS_HOST_BAWAAN,
+    OPS_INTERNAL_BAWAAN,
+    TANPA_HAK,
+    HasilSesi,
+    PemeriksaSesi,
+    jalur_lanjut,
+    periksa_sesi_ops,
+    url_login_ops,
+)
 from .tanggal import TanggalTidakDikenal, dari_iso, format_periode_id
 
 __all__ = ["buat_app"]
@@ -51,8 +70,17 @@ BATAS_UNGGAHAN: int = 16 * 1024 * 1024
 
 
 def buat_app(
-    path_basis: str | Path = "joderma.db", kunci_rahasia: str | None = None
+    path_basis: str | Path = "joderma.db",
+    kunci_rahasia: str | None = None,
+    *,
+    pemeriksa_sesi: PemeriksaSesi | None = None,
 ) -> Flask:
+    """Buat aplikasi admin.
+
+    ``pemeriksa_sesi`` menggantikan pertanyaan ke ops (dipakai tes dan mode
+    pengembangan agar tidak memanggil jaringan). Bawaannya menanyakan ops di
+    ``JODERMA_OPS_INTERNAL`` dengan header ``Host: JODERMA_OPS_HOST``.
+    """
     app = Flask(__name__, template_folder="templat")
     app.config["MAX_CONTENT_LENGTH"] = BATAS_UNGGAHAN
     app.config["PATH_BASIS"] = str(path_basis)
@@ -85,6 +113,23 @@ def buat_app(
         # SCRIPT_NAME yang sudah dipasang lapisan di bawah; mengisi keduanya
         # membuat awalannya terpasang dua kali (/survei/survei/kirim).
         app.wsgi_app = AwalanJalur(app.wsgi_app, awalan)
+    app.config["AWALAN"] = awalan
+
+    # Host publik ops (untuk tautan login dan "kembali ke ops") dan alamat
+    # internalnya (untuk menanyakan sesi). Keduanya bisa diatur lewat env.
+    host_ops = (
+        os.environ.get("JODERMA_OPS_HOST", "").strip().strip("/") or OPS_HOST_BAWAAN
+    )
+    url_ops_internal = (
+        os.environ.get("JODERMA_OPS_INTERNAL", "").strip() or OPS_INTERNAL_BAWAAN
+    )
+    app.config["OPS_HOST"] = host_ops
+    if pemeriksa_sesi is None:
+
+        def pemeriksa_sesi(kuki: str | None) -> HasilSesi:
+            return periksa_sesi_ops(kuki, url_internal=url_ops_internal, host=host_ops)
+
+    tanya_ops: PemeriksaSesi = pemeriksa_sesi
 
     # ------------------------------------------------------------------ basis
     def sambungan() -> sqlite3.Connection:
@@ -101,15 +146,53 @@ def buat_app(
     app.sambungan = sambungan  # type: ignore[attr-defined]
 
     # ------------------------------------------------------------- pengguna
+    def sesi_ops() -> HasilSesi:
+        """Jawaban ops untuk permintaan ini; ditanyakan sekali per permintaan.
+
+        Sengaja tidak disimpan di sesi survei, supaya logout ops atau peran
+        yang dicabut langsung berlaku pada permintaan berikutnya. Yang
+        diteruskan hanya kuki ``sessionid`` milik ops.
+        """
+        if "sesi_ops" not in g:
+            g.sesi_ops = tanya_ops(request.cookies.get(NAMA_KUKI_OPS) or None)
+        return g.sesi_ops
+
     def pengguna_aktif() -> Pengguna | None:
-        nama = session.get("pengguna")
-        if not nama:
+        """Pengguna dari ops, atau None bila belum login / tidak berhak.
+
+        Tidak memakai tabel ``pengguna``: tidak ada tabel lain yang mencatat
+        pelaku, jadi tidak ada yang perlu dibuatkan baris. ``nama`` diisi
+        username ops, ``id`` 0 karena tidak ada barisnya.
+        """
+        hasil = sesi_ops()
+        if hasil.status != BERHAK or hasil.peran is None:
             return None
-        return cari_pengguna(sambungan(), nama)
+        return Pengguna(id=0, nama=hasil.username, peran=hasil.peran, aktif=True)
+
+    def ke_login_ops() -> Any:
+        lanjut = jalur_lanjut(
+            app.config["AWALAN"],
+            request.path,
+            request.query_string.decode("latin-1"),
+        )
+        return redirect(url_login_ops(app.config["OPS_HOST"], lanjut))
 
     @app.context_processor
     def suntik() -> dict[str, Any]:
-        return {"pengguna": pengguna_aktif(), "token_csrf": session.get("csrf", "")}
+        orang = pengguna_aktif()
+        return {
+            "pengguna": orang,
+            "nama_tampil": (sesi_ops().nama or orang.nama) if orang else "",
+            "token_csrf": session.get("csrf", ""),
+            "url_ops": f"https://{app.config['OPS_HOST']}/",
+        }
+
+    @app.after_request
+    def jangan_simpan_cache(jawab: Any) -> Any:
+        # Daftar kirim memuat nama pasien: sesudah logout ops, tombol kembali di
+        # komputer bersama tidak boleh menampilkan halaman dari cache peramban.
+        jawab.headers["Cache-Control"] = "no-store"
+        return jawab
 
     # ------------------------------------------------------------------ csrf
     def periksa_csrf() -> None:
@@ -120,8 +203,12 @@ def buat_app(
 
     @app.before_request
     def jaga_csrf() -> None:
-        if request.method == "POST" and request.endpoint != "halaman_masuk":
+        if request.method == "POST":
             periksa_csrf()
+        elif request.method == "GET" and "csrf" not in session:
+            # Token dibuat pada GET pertama; disimpan di sesi survei yang
+            # kukinya khas dan dibatasi ke awalan.
+            session["csrf"] = secrets.token_urlsafe(32)
 
     # -------------------------------------------------------------- penjaga
     def perlu(kemampuan: str) -> Callable[..., Any]:
@@ -130,9 +217,13 @@ def buat_app(
         def pembungkus(fungsi: Callable[..., Any]) -> Callable[..., Any]:
             @wraps(fungsi)
             def dalam(*args: Any, **kw: Any) -> Any:
+                hasil = sesi_ops()
+                if hasil.status == TANPA_HAK:
+                    abort(403)
                 orang = pengguna_aktif()
                 if orang is None:
-                    return redirect(url_for("halaman_masuk", lanjut=request.path))
+                    # 401 dari ops, atau jawaban apa pun yang tidak sah.
+                    return ke_login_ops()
                 if not orang.boleh(kemampuan):
                     abort(403)
                 return fungsi(*args, **kw)
@@ -142,38 +233,13 @@ def buat_app(
         return pembungkus
 
     # ----------------------------------------------------------------- rute
-    @app.route("/masuk", methods=["GET", "POST"])
-    def halaman_masuk() -> Any:
-        if request.method == "POST":
-            orang = masuk(
-                sambungan(),
-                request.form.get("nama", ""),
-                request.form.get("sandi", ""),
-            )
-            if orang is None:
-                # Pesan sengaja tidak menyebut mana yang salah.
-                flash("Nama pengguna atau sandi salah.", "galat")
-                return render_template("masuk.html"), 401
-            session.clear()
-            session["pengguna"] = orang.nama
-            session["csrf"] = secrets.token_urlsafe(32)
-            lanjut = request.args.get("lanjut", "")
-            # Hanya jalur internal, supaya tidak bisa dipakai mengarahkan keluar.
-            if lanjut.startswith("/") and not lanjut.startswith("//"):
-                return redirect(lanjut)
-            return redirect(url_for("beranda"))
-        return render_template("masuk.html")
-
-    @app.post("/keluar")
-    def halaman_keluar() -> Any:
-        session.clear()
-        return redirect(url_for("halaman_masuk"))
-
     @app.route("/")
     def beranda() -> Any:
+        if sesi_ops().status == TANPA_HAK:
+            abort(403)
         orang = pengguna_aktif()
         if orang is None:
-            return redirect(url_for("halaman_masuk"))
+            return ke_login_ops()
         if orang.boleh("unggah_laporan"):
             return redirect(url_for("halaman_unggah"))
         return redirect(url_for("halaman_kirim"))
@@ -288,7 +354,8 @@ def buat_app(
     @app.errorhandler(403)
     def tanpa_hak(_galat: Any) -> Any:
         return render_template("galat.html", kode=403,
-                               pesan="Halaman ini tidak terbuka untuk peran Anda."), 403
+                               pesan="Halaman ini tidak terbuka untuk peran Anda.",
+                               tautan_ops=True), 403
 
     @app.errorhandler(413)
     def terlalu_besar(_galat: Any) -> Any:

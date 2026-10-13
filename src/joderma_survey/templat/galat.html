@@ -3,4 +3,5 @@
 {% block isi %}
 <h1>{{ kode }}</h1>
 <p class="catatan">{{ pesan }}</p>
+{% if tautan_ops %}<p><a href="{{ url_ops }}">Kembali ke ops</a></p>{% endif %}
 {% endblock %}

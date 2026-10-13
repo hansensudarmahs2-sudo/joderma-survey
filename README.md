@@ -37,14 +37,13 @@ gap, PRD). Kirim dari mesin pengembangan dengan
 `./tools/kirim-berkas-lokal.sh`.
 
 Aman dijalankan ulang. Langkah yang tidak bisa diotomatiskan (Cloudflare
-Tunnel, Syncthing, pembuatan pengguna, uji pemulihan cadangan) dicetak di
+Tunnel, Syncthing, hak akses di ops, uji pemulihan cadangan) dicetak di
 akhir.
 
 ## Menjalankan
 
 ```
 uv run python -m joderma_survey --basis joderma.db siapkan
-uv run python -m joderma_survey --basis joderma.db pengguna --nama <nama> --peran direktur
 uv run python -m joderma_survey --basis joderma.db jalankan --porta 8000
 uv run python -m joderma_survey --basis joderma.db jalankan-survei --porta 8001
 ```
@@ -53,6 +52,15 @@ Dua aplikasi terpisah: `jalankan` untuk admin (porta 8000) dan
 `jalankan-survei` untuk halaman pasien (porta 8001). Di mini PC keduanya
 dipetakan ke subdomain berbeda lewat Cloudflare Tunnel, dan hanya porta
 survei yang berada di luar kebijakan Cloudflare Access.
+
+**Login admin memakai sesi aplikasi ops** (keputusan 2.55). Aplikasi admin
+tidak punya halaman masuk sendiri: setiap permintaan menanyakan ke ops
+(`GET /akun/sesi-survei/`) siapa pemilik kuki `sessionid` yang dibawa
+peramban. Belum login ops → dialihkan ke halaman login ops. Karena itu admin
+hanya bisa dipakai lewat `ops.joderma.id/survei` dengan ops yang hidup;
+dibuka langsung tanpa sesi ops, semua halaman mengalihkan ke login ops.
+Perintah `pengguna` masih ada untuk tabel lama, tetapi akunnya tidak dipakai
+untuk login web.
 
 Mengubah isi survei: sunting `config/pertanyaan.toml`, lalu
 
@@ -76,9 +84,15 @@ Menghasilkan `konteks.md`, `ringkasan.json`, `jawaban.csv`, dan `teks.csv`.
 Berkas `konteks.md` memuat batas penafsiran dan harus dibaca lebih dulu oleh
 siapa pun yang menganalisis.
 
-Peubah lingkungan: `JODERMA_URL_SURVEI` (alamat halaman survei publik) dan
-`JODERMA_KUNCI_RAHASIA` (kunci sesi; harus tetap, kalau tidak semua pengguna
-keluar setiap aplikasi dijalankan ulang).
+Peubah lingkungan:
+
+| Peubah | Isi | Bawaan |
+|---|---|---|
+| `JODERMA_URL_SURVEI` | alamat halaman survei publik | — |
+| `JODERMA_KUNCI_RAHASIA` | kunci sesi; harus tetap, kalau tidak token formulir (CSRF) yang sedang terbuka jadi tidak sah setiap aplikasi dijalankan ulang | acak |
+| `JODERMA_AWALAN_ADMIN` | awalan jalur admin, mis. `/survei` | kosong |
+| `JODERMA_OPS_INTERNAL` | alamat internal aplikasi ops untuk menanyakan sesi | `http://127.0.0.1:8731` |
+| `JODERMA_OPS_HOST` | hostname publik ops: header `Host` ke ops, tujuan login dan tautan "Kembali ke ops" | `ops.joderma.id` |
 
 ## Pemasangan di mini PC
 
@@ -94,7 +108,7 @@ gap, PRD). Kirim dari mesin pengembangan dengan
 `./tools/kirim-berkas-lokal.sh`.
 
 Aman dijalankan ulang. Langkah yang tidak bisa diotomatiskan (Cloudflare
-Tunnel, Syncthing, pembuatan pengguna, uji pemulihan cadangan) dicetak di
+Tunnel, Syncthing, hak akses di ops, uji pemulihan cadangan) dicetak di
 akhir.
 
 ## Menjalankan tes
@@ -122,11 +136,20 @@ jadi tidak perlu penjadwal yang bisa mati tanpa ketahuan.
 
 ## Hak akses
 
-| Peran | Daftar kirim | Unggah laporan | Hasil survei | Kelola pengguna |
-|---|---|---|---|---|
-| Owner | ya | ya | ya | tidak |
-| Direktur operasional | ya | ya | ya | ya |
-| CS | ya | **tidak** | **tidak** | tidak |
+| Peran | Daftar kirim | Unggah laporan | Hasil survei |
+|---|---|---|---|
+| Owner | ya | ya | ya |
+| Direktur operasional | ya | ya | ya |
+| CS | ya | **tidak** | **tidak** |
+
+Peran **ditentukan di aplikasi ops**, bukan di sini: ops menjawab
+`direktur`, `owner`, atau `cs`, dan aplikasi admin menerapkan tabel di atas
+(`IZIN` di `pengguna.py`) di sisi server. Staf yang sudah login ops tetapi
+tidak berhak Survei mendapat halaman 403 dengan tautan kembali ke ops. Ops
+ditanya pada setiap permintaan, jadi logout ops atau peran yang dicabut
+langsung berlaku. Jawaban ops yang tidak sah, timeout, atau ops mati selalu
+dianggap belum login, tidak pernah berhak. Pengelolaan pengguna dan sandi
+tidak lagi ada di aplikasi ini.
 
 Aplikasi admin dan halaman survei publik adalah **dua aplikasi terpisah**,
 bukan satu aplikasi dengan aturan rute, sehingga subdomain survei secara
